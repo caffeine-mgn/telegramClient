@@ -29,7 +29,7 @@ allprojects {
         mavenCentral()
         jcenter()
         maven {
-            url "http://repo.binom.pw/releases"
+            url "https://repo.binom.pw/releases"
         }
     }
 }
