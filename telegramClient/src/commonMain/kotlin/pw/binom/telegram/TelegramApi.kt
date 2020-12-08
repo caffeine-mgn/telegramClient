@@ -6,7 +6,7 @@ import pw.binom.URL
 import pw.binom.io.*
 import pw.binom.io.http.Headers
 import pw.binom.io.httpClient.AsyncHttpClient
-import pw.binom.io.socket.nio.SocketNIOManager
+import pw.binom.network.NetworkDispatcher
 import pw.binom.telegram.dto.*
 
 private val jsonSerialization = Json {
@@ -18,7 +18,7 @@ private val jsonSerialization = Json {
 }
 private const val BASE_PATH = "https://api.telegram.org/bot"
 
-class TelegramApi(var lastUpdate: Long, val token: String, manager: SocketNIOManager) {
+class TelegramApi(var lastUpdate: Long, val token: String, manager: NetworkDispatcher) {
     private val client = AsyncHttpClient(manager)
     private val baseUrl = URL("https://api.telegram.org/bot${UTF8.urlEncode(token)}")
 
