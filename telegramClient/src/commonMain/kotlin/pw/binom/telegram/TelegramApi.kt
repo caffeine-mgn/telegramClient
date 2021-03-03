@@ -18,13 +18,16 @@ private val jsonSerialization = Json {
 }
 private const val BASE_PATH = "https://api.telegram.org/bot"
 
-class TelegramApi(var lastUpdate: Long, val token: String, manager: NetworkDispatcher) {
+class TelegramApi(var lastUpdate: Long = 0, val token: String, manager: NetworkDispatcher) {
     private val client = AsyncHttpClient(manager)
     private val baseUrl = URL("https://api.telegram.org/bot${UTF8.urlEncode(token)}")
 
     companion object {
         fun parseUpdate(json: String) =
-                jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), jsonSerialization.parseToJsonElement(json))
+            jsonSerialization.decodeFromJsonElement(
+                ListSerializer(Update.serializer()),
+                jsonSerialization.parseToJsonElement(json)
+            )
 
         suspend fun getWebhook(client: AsyncHttpClient, token: String): WebhookInfo {
             val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/getWebhookInfo")
