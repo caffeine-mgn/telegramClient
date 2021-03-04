@@ -12,7 +12,7 @@ class User(
         /**
          * Unique identifier for this user or bot
          */
-        val id: Int,
+        val id: Long,
 
         /**
          * If this user is a bot

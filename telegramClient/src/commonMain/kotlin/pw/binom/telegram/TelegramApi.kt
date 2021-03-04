@@ -18,8 +18,13 @@ private val jsonSerialization = Json {
 }
 private const val BASE_PATH = "https://api.telegram.org/bot"
 
-class TelegramApi(var lastUpdate: Long = 0, val token: String, manager: NetworkDispatcher) {
-    private val client = AsyncHttpClient(manager)
+class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: AsyncHttpClient) {
+    constructor(lastUpdate: Long = 0, token: String, manager: NetworkDispatcher) : this(
+        lastUpdate = lastUpdate,
+        token = token,
+        client = AsyncHttpClient(manager),
+    )
+
     private val baseUrl = URL("https://api.telegram.org/bot${UTF8.urlEncode(token)}")
 
     companion object {
@@ -74,11 +79,22 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, manager: NetworkD
         suspend fun sendMessage(client: AsyncHttpClient, token: String, message: TextMessage): Message {
             val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/sendMessage")
             val response = client.request("POST", url)
-                    .addHeader(Headers.CONTENT_TYPE, "application/json")
-                    .upload().also {
-                        it.utf8Appendable().append(jsonSerialization.encodeToString(TextMessage.serializer(), message))
-                        Unit
-                    }.response()
+                .addHeader(Headers.CONTENT_TYPE, "application/json")
+                .upload().also {
+                    it.utf8Appendable().append(jsonSerialization.encodeToString(TextMessage.serializer(), message))
+                    Unit
+                }.response()
+            val responseText = response.utf8Reader().use { it.readText() }
+            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(responseText)!!)
+        }
+
+        suspend fun deleteMessage(client: AsyncHttpClient, token: String, chatId: String, messageId: Long): Message {
+            val url = URL(
+                "$BASE_PATH${UTF8.urlEncode(token)}/deleteMessage?chat_id=${UTF8.encode(chatId)}&message_id=$messageId"
+            )
+            val response = client.request("POST", url)
+                .addHeader(Headers.CONTENT_TYPE, "application/json")
+                .response()
             val responseText = response.utf8Reader().use { it.readText() }
             return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(responseText)!!)
         }
@@ -89,8 +105,8 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, manager: NetworkD
                 val code = tree["error_code"]?.jsonPrimitive?.int ?: 0
                 throw when (code) {
                     else -> TelegramException(
-                            code = code,
-                            description = tree["description"]?.jsonPrimitive?.content ?: "Unknown Error"
+                        code = code,
+                        description = tree["description"]?.jsonPrimitive?.content ?: "Unknown Error"
                     )
                 }
             }
@@ -111,10 +127,18 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, manager: NetworkD
 
     suspend fun getWebhook(): WebhookInfo = getWebhook(client, token)
 
+    private var watingUpdate = false
+
     suspend fun getUpdate(): List<Update> {
-        val r = getUpdate(client, token, lastUpdate)
-        lastUpdate = r.first
-        return r.second
+        check(watingUpdate) { "You already waiting messages" }
+        try {
+            watingUpdate = true
+            val r = getUpdate(client, token, lastUpdate)
+            lastUpdate = r.first
+            return r.second
+        } finally {
+            watingUpdate = false
+        }
     }
 
     abstract class AbstractTelegramException : IOException {

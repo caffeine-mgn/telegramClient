@@ -34,13 +34,7 @@ kotlin {
         }
     }
 
-    jvm {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = '1.8'
-            }
-        }
-    }
+    jvm()
 
     sourceSets {
 
@@ -49,7 +43,8 @@ kotlin {
                 api "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
                 api "pw.binom.io:httpClient:$network_version"
                 api "pw.binom.io:core:$network_version"
-                api "org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1"
+                api "org.jetbrains.kotlinx:kotlinx-serialization-core:1.1.0"
+                api "org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0"
             }
         }
 
