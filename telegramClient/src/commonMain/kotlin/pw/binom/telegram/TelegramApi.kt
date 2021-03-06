@@ -2,12 +2,15 @@ package pw.binom.telegram
 
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.*
-import pw.binom.URL
 import pw.binom.io.*
+import pw.binom.io.http.HTTPMethod
 import pw.binom.io.http.Headers
 import pw.binom.io.httpClient.AsyncHttpClient
+import pw.binom.io.httpClient.HttpClient
+import pw.binom.io.httpClient.addHeader
 import pw.binom.network.NetworkDispatcher
 import pw.binom.telegram.dto.*
+import pw.binom.toURLOrNull
 
 private val jsonSerialization = Json {
     ignoreUnknownKeys = true
@@ -18,14 +21,9 @@ private val jsonSerialization = Json {
 }
 private const val BASE_PATH = "https://api.telegram.org/bot"
 
-class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: AsyncHttpClient) {
-    constructor(lastUpdate: Long = 0, token: String, manager: NetworkDispatcher) : this(
-        lastUpdate = lastUpdate,
-        token = token,
-        client = AsyncHttpClient(manager),
-    )
+class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: HttpClient) {
 
-    private val baseUrl = URL("https://api.telegram.org/bot${UTF8.urlEncode(token)}")
+    private val baseUrl = "$BASE_PATH${UTF8.urlEncode(token)}".toURLOrNull()!!
 
     companion object {
         fun parseUpdate(json: String) =
@@ -34,69 +32,79 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: Async
                 jsonSerialization.parseToJsonElement(json)
             )
 
-        suspend fun getWebhook(client: AsyncHttpClient, token: String): WebhookInfo {
-            val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/getWebhookInfo")
-            val json = client.request("GET", url)
-                    .response()
-                    .utf8Reader().use {
-                        it.readText()
-                    }
+        suspend fun getWebhook(client: HttpClient, token: String): WebhookInfo {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/getWebhookInfo".toURLOrNull()!!
+            val json = client.request(HTTPMethod.GET, url)
+                .getResponse()
+                .readText().use {
+                    it.readText()
+                }
             return jsonSerialization.decodeFromJsonElement(WebhookInfo.serializer(), getResult(json)!!)
         }
 
-        suspend fun getUpdate(client: AsyncHttpClient, token: String, lastUpdate: Long): Pair<Long, List<Update>> {
-            val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/getUpdates?offset=${lastUpdate + 1}&timeout=${60}")
-            val json = client.request("GET", url)
-                    .response()
-                    .utf8Reader().use {
-                        it.readText()
-                    }
+        suspend fun getUpdate(client: HttpClient, token: String, lastUpdate: Long): Pair<Long, List<Update>> {
+            val url =
+                "$BASE_PATH${UTF8.urlEncode(token)}/getUpdates?offset=${lastUpdate + 1}&timeout=${60}".toURLOrNull()!!
+            val json = client.request(HTTPMethod.GET, url)
+                .getResponse()
+                .readText().use {
+                    it.readText()
+                }
             val resultJsonTree = getResult(json)
-            val updates = jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), resultJsonTree!!.jsonArray)
+            val updates =
+                jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), resultJsonTree!!.jsonArray)
             val updateId = updates.lastOrNull()?.updateId
             return (updateId ?: 0L) to updates
         }
 
-        suspend fun deleteWebhook(client: AsyncHttpClient, token: String) {
-            val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/deleteWebhook")
-            val response = client.request("POST", url)
-                    .addHeader(Headers.CONTENT_TYPE, "application/json")
-                    .response()
-            getResult(response.utf8Reader().use { it.readText() })
-        }
-
-        suspend fun setWebhook(client: AsyncHttpClient, token: String, request: SetWebhookRequest) {
-            val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/setWebhook")
-            val response = client.request("POST", url)
-                    .addHeader(Headers.CONTENT_TYPE, "application/json")
-                    .upload().also {
-                        it.utf8Appendable().append(jsonSerialization.encodeToString(SetWebhookRequest.serializer(), request))
-                        Unit
-                    }.response()
-            getResult(response.utf8Reader().use { it.readText() })
-        }
-
-        suspend fun sendMessage(client: AsyncHttpClient, token: String, message: TextMessage): Message {
-            val url = URL("$BASE_PATH${UTF8.urlEncode(token)}/sendMessage")
-            val response = client.request("POST", url)
+        suspend fun deleteWebhook(client: HttpClient, token: String) {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/deleteWebhook".toURLOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
                 .addHeader(Headers.CONTENT_TYPE, "application/json")
-                .upload().also {
-                    it.utf8Appendable().append(jsonSerialization.encodeToString(TextMessage.serializer(), message))
-                    Unit
-                }.response()
-            val responseText = response.utf8Reader().use { it.readText() }
-            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(responseText)!!)
+                .getResponse()
+                .readText().use {
+                    it.readText()
+                }
+            getResult(response)
         }
 
-        suspend fun deleteMessage(client: AsyncHttpClient, token: String, chatId: String, messageId: Long): Message {
-            val url = URL(
+        suspend fun setWebhook(client: HttpClient, token: String, request: SetWebhookRequest) {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/setWebhook".toURLOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
+                .addHeader(Headers.CONTENT_TYPE, "application/json")
+                .writeText().also {
+                    it.append(jsonSerialization.encodeToString(SetWebhookRequest.serializer(), request))
+                }
+                .getResponse()
+                .readText().use { it.readText() }
+            getResult(response)
+        }
+
+        suspend fun sendMessage(client: HttpClient, token: String, message: TextMessage): Message {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/sendMessage".toURLOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
+                .addHeader(Headers.CONTENT_TYPE, "application/json")
+                .writeText().also {
+                    it.append(jsonSerialization.encodeToString(TextMessage.serializer(), message))
+                }
+                .getResponse()
+                .readText().use {
+                    it.readText()
+                }
+            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(response)!!)
+        }
+
+        suspend fun deleteMessage(client: HttpClient, token: String, chatId: String, messageId: Long): Message {
+            val url =
                 "$BASE_PATH${UTF8.urlEncode(token)}/deleteMessage?chat_id=${UTF8.encode(chatId)}&message_id=$messageId"
-            )
-            val response = client.request("POST", url)
+                    .toURLOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
                 .addHeader(Headers.CONTENT_TYPE, "application/json")
-                .response()
-            val responseText = response.utf8Reader().use { it.readText() }
-            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(responseText)!!)
+                .getResponse()
+                .readText().use {
+                    it.readText()
+                }
+            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(response)!!)
         }
 
         private fun getResult(json: String): JsonElement? {
@@ -115,7 +123,7 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: Async
     }
 
     suspend fun sendMessage(message: TextMessage): Message =
-            sendMessage(client, token, message)
+        sendMessage(client, token, message)
 
     suspend fun setWebhook(request: SetWebhookRequest) {
         setWebhook(client, token, request)
