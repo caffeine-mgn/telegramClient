@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class Update(
+data class Update(
         @SerialName("update_id")
         val updateId: Long,
 
