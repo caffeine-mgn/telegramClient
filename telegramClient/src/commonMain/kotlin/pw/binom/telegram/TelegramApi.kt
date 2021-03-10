@@ -46,6 +46,7 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: HttpC
         suspend fun getUpdate(client: HttpClient, token: String, lastUpdate: Long): Pair<Long, List<Update>> {
             val url =
                 "$BASE_PATH${UTF8.urlEncode(token)}/getUpdates?offset=${lastUpdate + 1}&timeout=${60}".toURIOrNull()!!
+            println("url: ${url.request}")
             val json = client.request(HTTPMethod.GET, url)
                 .getResponse()
                 .readText().use {
@@ -139,7 +140,7 @@ class TelegramApi(var lastUpdate: Long = 0, val token: String, val client: HttpC
     private var watingUpdate = false
 
     suspend fun getUpdate(): List<Update> {
-        check(watingUpdate) { "You already waiting messages" }
+        check(!watingUpdate) { "You already waiting messages" }
         try {
             watingUpdate = true
             val r = getUpdate(client, token, lastUpdate)
