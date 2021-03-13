@@ -3,12 +3,9 @@ package pw.binom.telegram
 import pw.binom.io.UTF8
 import pw.binom.io.httpClient.HttpClient
 import pw.binom.neverFreeze
-import pw.binom.telegram.dto.Message
-import pw.binom.telegram.dto.SetWebhookRequest
-import pw.binom.telegram.dto.TextMessage
-import pw.binom.telegram.dto.Update
+import pw.binom.telegram.dto.*
 
-class TelegramClientImpl(var lastUpdate: Long = 0, val token: String, val client: HttpClient):TelegramClient {
+class TelegramClientImpl(var lastUpdate: Long = 0, val token: String, val client: HttpClient) : TelegramClient {
 
     private var watingUpdate = false
 
@@ -16,8 +13,9 @@ class TelegramClientImpl(var lastUpdate: Long = 0, val token: String, val client
         check(!watingUpdate) { "You already waiting messages" }
         try {
             watingUpdate = true
-            val r = TelegramApi.getUpdate(client, token, lastUpdate)
-            lastUpdate = r.first
+            val r = TelegramApi.getUpdate(client, token, UpdateRequest(offset = lastUpdate, limit = null, 60, null))
+            lastUpdate = r.first + 1
+            println(":lastUpdate -> $lastUpdate")
             return r.second
         } finally {
             watingUpdate = false
