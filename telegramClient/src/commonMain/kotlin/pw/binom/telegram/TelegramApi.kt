@@ -20,6 +20,7 @@ private val jsonSerialization = Json {
     allowSpecialFloatingPointValues = true
     allowStructuredMapKeys = true
     encodeDefaults = false
+    classDiscriminator = "@class"
 }
 
 internal const val BASE_PATH = "https://api.telegram.org/bot"
@@ -43,23 +44,33 @@ object TelegramApi {
         return jsonSerialization.decodeFromJsonElement(WebhookInfo.serializer(), getResult(json)!!)
     }
 
-    suspend fun getUpdate(client: HttpClient, token: String, updateRequest: UpdateRequest): Pair<Long, List<Update>> {
-        val url =
-            "$BASE_PATH${UTF8.urlEncode(token)}/getUpdates".toURIOrNull()!!
-        val json = client.request(HTTPMethod.POST, url)
-            .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
-            .writeText {
-                it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
-            }
-            .readText().use {
-                it.readText()
-            }
-        val resultJsonTree = getResult(json)
-        val updates =
-            jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), resultJsonTree!!.jsonArray)
-        val updateId = updates.lastOrNull()?.updateId
-        println("${updateRequest.offset} -> $updateId")
-        return (updateId ?: 0L) to updates
+    suspend fun getUpdate(
+        client: HttpClient,
+        token: String,
+        updateRequest: UpdateRequest,
+    ): Pair<Long, List<Update>> {
+        try {
+            val url =
+                "$BASE_PATH${UTF8.urlEncode(token)}/getUpdates".toURIOrNull()!!
+            val json = client.request(HTTPMethod.POST, url)
+                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .writeText {
+                    it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
+                }
+                .readText().use {
+                    it.readText()
+                }
+            println("-----json-----\n$json\n-----json-----")
+            val resultJsonTree = getResult(json)
+            val updates =
+                jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), resultJsonTree!!.jsonArray)
+//            println("Decoded! $updates")
+            val updateId = updates.lastOrNull()?.updateId
+            return (updateId ?: 0L) to updates
+        } catch (e: Throwable) {
+            println("Error $e")
+            throw InvalidRequestException("Can't get Telegram Updates", e)
+        }
     }
 
     suspend fun deleteWebhook(client: HttpClient, token: String) {
@@ -83,20 +94,44 @@ object TelegramApi {
         getResult(response)
     }
 
-    suspend fun sendMessage(client: HttpClient, token: String, message: TextMessage): Message {
-        val url = "$BASE_PATH${UTF8.urlEncode(token)}/sendMessage".toURIOrNull()!!
-        val response = client.request(HTTPMethod.POST, url)
-            .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
-            .writeText {
-                it.append(jsonSerialization.encodeToString(TextMessage.serializer(), message))
-            }
-            .readText().use {
-                it.readText()
-            }
-        return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(response)!!)
+    suspend fun editMessage(client: HttpClient, token: String, message: EditTextRequest): Message? {
+        val sendBody = jsonSerialization.encodeToString(EditTextRequest.serializer(), message)
+        try {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/editMessageText".toURIOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
+                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .writeText {
+                    it.append(sendBody)
+                }
+                .readText().use {
+                    it.readText()
+                }
+            val result = getResult(response) ?: return null
+            return jsonSerialization.decodeFromJsonElement(Message.serializer(), result)
+        } catch (e: Throwable) {
+            throw InvalidRequestException("Sent \"$sendBody\"", e)
+        }
     }
 
-    suspend fun deleteMessage(client: HttpClient, token: String, chatId: String, messageId: Long): Message {
+    suspend fun sendMessage(client: HttpClient, token: String, message: TextMessage): Message {
+        val sendBody = jsonSerialization.encodeToString(TextMessage.serializer(), message)
+        try {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/sendMessage".toURIOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
+                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .writeText {
+                    it.append(sendBody)
+                }
+                .readText().use {
+                    it.readText()
+                }
+            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(response)!!)
+        } catch (e: Throwable) {
+            throw InvalidRequestException("Sent \"$sendBody\"", e)
+        }
+    }
+
+    suspend fun deleteMessage(client: HttpClient, token: String, chatId: String, messageId: Long) {
         val url =
             "$BASE_PATH${UTF8.urlEncode(token)}/deleteMessage?chat_id=${UTF8.encode(chatId)}&message_id=$messageId"
                 .toURIOrNull()!!
@@ -106,7 +141,7 @@ object TelegramApi {
             .readText().use {
                 it.readText()
             }
-        return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(response)!!)
+        getResult(response)
     }
 
     private fun getResult(json: String): JsonElement? {

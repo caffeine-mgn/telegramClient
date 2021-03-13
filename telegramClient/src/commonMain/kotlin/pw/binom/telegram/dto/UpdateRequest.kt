@@ -5,10 +5,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UpdateRequest(
-    val offset: Long?,
-    val limit: Long?,
-    val timeout: Long,
+    var offset: Long?,
+    var limit: Long?,
+    var timeout: Long,
 
     @SerialName("allowed_updates")
-    val allowedUpdates: List<String>?,
+    var allowedUpdates: List<EventType>?,
 )

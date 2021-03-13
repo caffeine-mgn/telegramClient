@@ -1,26 +1,40 @@
 package pw.binom.telegram
 
-import pw.binom.io.UTF8
 import pw.binom.io.httpClient.HttpClient
 import pw.binom.neverFreeze
 import pw.binom.telegram.dto.*
 
-class TelegramClientImpl(var lastUpdate: Long = 0, val token: String, val client: HttpClient) : TelegramClient {
+class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: HttpClient) : TelegramClient {
 
     private var watingUpdate = false
+    private val updateRequest = UpdateRequest(offset = lastUpdate, limit = null, timeout = 60, null)
 
-    override suspend fun getUpdate(): List<Update> {
+    override suspend fun getUpdate(
+        limit: Long?,
+        timeout: Long,
+        allowedUpdates: List<EventType>?,
+    ): List<Update> {
         check(!watingUpdate) { "You already waiting messages" }
         try {
+            updateRequest.also {
+                it.limit = limit
+                it.timeout = timeout
+                it.allowedUpdates = allowedUpdates
+            }
             watingUpdate = true
-            val r = TelegramApi.getUpdate(client, token, UpdateRequest(offset = lastUpdate, limit = null, 60, null))
-            lastUpdate = r.first + 1
-            println(":lastUpdate -> $lastUpdate")
+            val r = TelegramApi.getUpdate(client, token, updateRequest)
+            updateRequest.offset = r.first + 1
             return r.second
         } finally {
             watingUpdate = false
         }
     }
+
+    override suspend fun deleteMessage(chatId: String, messageId: Long) =
+        TelegramApi.deleteMessage(client = client, token = token, chatId = chatId, messageId = messageId)
+
+    override suspend fun editMessage(message: EditTextRequest): Message? =
+        TelegramApi.editMessage(client, token, message)
 
     override suspend fun getWebhook() = TelegramApi.getWebhook(client, token)
 

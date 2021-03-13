@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
  * This object represents a Telegram user or bot.
  */
 @Serializable
-class User(
+data class User(
         /**
          * Unique identifier for this user or bot
          */
