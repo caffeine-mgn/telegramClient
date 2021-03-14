@@ -49,6 +49,15 @@ class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: Ht
     override suspend fun sendMessage(message: TextMessage): Message =
         TelegramApi.sendMessage(client, token, message)
 
+    override suspend fun answerCallbackQuery(query: AnswerCallbackQueryRequest) =
+        TelegramApi.answerCallbackQuery(client, token, query)
+
+    override suspend fun setMyCommands(commands: List<BotCommand>) =
+        TelegramApi.setMyCommands(client, token, commands)
+
+    override suspend fun getMyCommands(): List<BotCommand> =
+        TelegramApi.getMyCommands(client, token)
+
     init {
         neverFreeze()
     }

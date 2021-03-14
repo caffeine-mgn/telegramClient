@@ -5,15 +5,15 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 class SetWebhookRequest(
-        @SerialName("url")
-        val url: String,
+    @SerialName("url")
+    val url: String,
 
-        @SerialName("certificate")
-        val certificate: String?,
+    @SerialName("certificate")
+    val certificate: String? = null,
 
-        @SerialName("max_connections")
-        val maxConnections: Int?,
+    @SerialName("max_connections")
+    val maxConnections: Int? = null,
 
-        @SerialName("allowed_updates")
-        val allowedUpdates: List<String>?
+    @SerialName("allowed_updates")
+    val allowedUpdates: List<EventType>? = null
 )

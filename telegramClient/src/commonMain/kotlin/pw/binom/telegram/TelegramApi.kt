@@ -94,6 +94,54 @@ object TelegramApi {
         getResult(response)
     }
 
+    suspend fun answerCallbackQuery(client: HttpClient, token: String, query: AnswerCallbackQueryRequest) {
+        val sendBody = jsonSerialization.encodeToString(AnswerCallbackQueryRequest.serializer(), query)
+        try {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/answerCallbackQuery".toURIOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
+                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .writeText {
+                    it.append(sendBody)
+                }
+                .readText().use {
+                    it.readText()
+                }
+            getResult(response)
+        } catch (e: Throwable) {
+            throw InvalidRequestException("Sent \"$sendBody\"", e)
+        }
+    }
+
+    suspend fun setMyCommands(client: HttpClient, token: String, commands: List<BotCommand>) {
+        val sendBody = jsonSerialization.encodeToString(ListSerializer(BotCommand.serializer()), commands)
+        try {
+            val url = "$BASE_PATH${UTF8.urlEncode(token)}/setMyCommands".toURIOrNull()!!
+            val response = client.request(HTTPMethod.POST, url)
+                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .writeText {
+                    it.append(sendBody)
+                }
+                .readText().use {
+                    it.readText()
+                }
+            getResult(response)
+        } catch (e: Throwable) {
+            throw InvalidRequestException("Sent \"$sendBody\"", e)
+        }
+    }
+
+    suspend fun getMyCommands(client: HttpClient, token: String): List<BotCommand> {
+        val url = "$BASE_PATH${UTF8.urlEncode(token)}/getMyCommands".toURIOrNull()!!
+        val response = client.request(HTTPMethod.GET, url)
+            .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+            .getResponse()
+            .readText().use {
+                it.readText()
+            }
+        return jsonSerialization.decodeFromJsonElement(ListSerializer(BotCommand.serializer()), getResult(response)!!)
+    }
+
+
     suspend fun editMessage(client: HttpClient, token: String, message: EditTextRequest): Message? {
         val sendBody = jsonSerialization.encodeToString(EditTextRequest.serializer(), message)
         try {

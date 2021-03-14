@@ -1,7 +1,9 @@
 package pw.binom.telegram.dto
 
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 enum class EventType {
     /**
      * New incoming message of any kind — text, photo, sticker, etc.
