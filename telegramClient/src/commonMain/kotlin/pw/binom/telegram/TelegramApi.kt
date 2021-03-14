@@ -60,15 +60,12 @@ object TelegramApi {
                 .readText().use {
                     it.readText()
                 }
-            println("-----json-----\n$json\n-----json-----")
             val resultJsonTree = getResult(json)
             val updates =
                 jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), resultJsonTree!!.jsonArray)
-//            println("Decoded! $updates")
             val updateId = updates.lastOrNull()?.updateId
             return (updateId ?: 0L) to updates
         } catch (e: Throwable) {
-            println("Error $e")
             throw InvalidRequestException("Can't get Telegram Updates", e)
         }
     }
@@ -84,14 +81,19 @@ object TelegramApi {
     }
 
     suspend fun setWebhook(client: HttpClient, token: String, request: SetWebhookRequest) {
+        val sendBody = jsonSerialization.encodeToString(SetWebhookRequest.serializer(), request)
         val url = "$BASE_PATH${UTF8.urlEncode(token)}/setWebhook".toURIOrNull()!!
-        val response = client.request(HTTPMethod.POST, url)
-            .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
-            .writeText {
-                it.append(jsonSerialization.encodeToString(SetWebhookRequest.serializer(), request))
-            }
-            .readText().use { it.readText() }
-        getResult(response)
+        try {
+            val response = client.request(HTTPMethod.POST, url)
+                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .writeText {
+                    it.append(sendBody)
+                }
+                .readText().use { it.readText() }
+            getResult(response)
+        } catch (e: Throwable) {
+            throw InvalidRequestException("Sent \"$sendBody\"", e)
+        }
     }
 
     suspend fun answerCallbackQuery(client: HttpClient, token: String, query: AnswerCallbackQueryRequest) {
