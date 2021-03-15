@@ -50,5 +50,5 @@ data class EditTextRequest(
      * A JSON-serialized object for an inline keyboard.
      */
     @SerialName("reply_markup")
-    val replyMarkup: InlineKeyboardMarkup,
+    val replyMarkup: InlineKeyboardMarkup? = null,
 )

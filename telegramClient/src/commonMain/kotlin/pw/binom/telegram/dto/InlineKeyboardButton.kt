@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
  * This object represents one button of an inline keyboard. You must use exactly one of the optional fields.
  */
 @Serializable
-class InlineKeyboardButton(
+data class InlineKeyboardButton(
     /**
      * Label text on the button
      */

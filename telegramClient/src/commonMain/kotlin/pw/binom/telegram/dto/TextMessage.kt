@@ -4,12 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class TextMessage(
+data class TextMessage(
         /**
          * Unique identifier for the target chat or username of the target channel (in the format @channelusername)
          */
         @SerialName("chat_id")
-        val chat_id: String,
+        val chatId: String,
 
         /**
          * Text of the message to be sent, 1-4096 characters after entities parsing
