@@ -18,4 +18,5 @@ interface TelegramClient {
     suspend fun answerCallbackQuery(query: AnswerCallbackQueryRequest)
     suspend fun setMyCommands(commands: List<BotCommand>)
     suspend fun getMyCommands(): List<BotCommand>
+    suspend fun getMe(): User
 }

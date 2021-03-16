@@ -58,6 +58,9 @@ class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: Ht
     override suspend fun getMyCommands(): List<BotCommand> =
         TelegramApi.getMyCommands(client, token)
 
+    override suspend fun getMe(): User =
+        TelegramApi.getMe(client, token)
+
     init {
         neverFreeze()
     }

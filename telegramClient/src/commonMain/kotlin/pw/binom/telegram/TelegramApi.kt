@@ -2,7 +2,6 @@ package pw.binom.telegram
 
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.*
-import pw.binom.io.IOException
 import pw.binom.io.UTF8
 import pw.binom.io.http.HTTPMethod
 import pw.binom.io.http.Headers
@@ -30,7 +29,7 @@ object TelegramApi {
 
     fun parseUpdate(json: String) =
         jsonSerialization.decodeFromJsonElement(
-            ListSerializer(Update.serializer()),
+            Update.serializer(),
             jsonSerialization.parseToJsonElement(json)
         )
 
@@ -41,7 +40,7 @@ object TelegramApi {
             .readText().use {
                 it.readText()
             }
-        return jsonSerialization.decodeFromJsonElement(WebhookInfo.serializer(), getResult(json)!!)
+        return jsonSerialization.decodeFromJsonElement(WebhookInfo.serializer(), getResult(json) ?: return null)
     }
 
     suspend fun getUpdate(
@@ -192,6 +191,16 @@ object TelegramApi {
                 it.readText()
             }
         getResult(response)
+    }
+
+    suspend fun getMe(client: HttpClient, token: String): User {
+        val url = "$BASE_PATH${UTF8.urlEncode(token)}/getMe".toURIOrNull()!!
+        val response = client.request(HTTPMethod.POST, url)
+            .getResponse()
+            .readText().use {
+                it.readText()
+            }
+        return jsonSerialization.decodeFromJsonElement(User.serializer(), getResult(response)!!)
     }
 
     private fun getResult(json: String): JsonElement? {
