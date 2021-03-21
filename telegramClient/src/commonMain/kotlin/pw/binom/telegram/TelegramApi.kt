@@ -5,11 +5,10 @@ import kotlinx.serialization.json.*
 import pw.binom.io.http.HTTPMethod
 import pw.binom.io.http.Headers
 import pw.binom.io.httpClient.HttpClient
-import pw.binom.io.httpClient.addHeader
 import pw.binom.io.httpClient.setHeader
 import pw.binom.io.readText
 import pw.binom.io.use
-import pw.binom.net.toURIOrNull
+import pw.binom.net.toURI
 import pw.binom.telegram.dto.*
 
 private val jsonSerialization = Json {
@@ -21,8 +20,8 @@ private val jsonSerialization = Json {
     classDiscriminator = "@class"
 }
 
-internal val BASE_PATH = "https://api.telegram.org/bot".toURIOrNull!!
-private val JSON_MIMETYPE = "application/json;charset=utf-8"
+private val BASE_PATH = "https://api.telegram.org/bot".toURI()
+private val JSON_MIME_TYPE = "application/json;charset=utf-8"
 
 object TelegramApi {
 
@@ -55,7 +54,7 @@ object TelegramApi {
                     .appendPath(token, direction = false, encode = true)
                     .appendPath("getUpdates")
             val json = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
                 }
@@ -93,7 +92,7 @@ object TelegramApi {
                 .appendPath("setWebhook")
         try {
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -112,7 +111,7 @@ object TelegramApi {
                     .appendPath(token, direction = false, encode = true)
                     .appendPath("answerCallbackQuery")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -126,19 +125,22 @@ object TelegramApi {
     }
 
     suspend fun setMyCommands(client: HttpClient, token: String, commands: List<BotCommand>) {
-        val sendBody = jsonSerialization.encodeToString(ListSerializer(BotCommand.serializer()), commands)
+        val sendBody =
+            jsonSerialization
+                .encodeToString(SetMyCommandsRequest.serializer(), SetMyCommandsRequest(commands))
         try {
             val url = BASE_PATH
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("setMyCommands")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
                 }
                 .readText().use {
                     it.readText()
                 }
+            println("url: ${url}, setMyCommands: ${response}")
             getResult(response)
         } catch (e: Throwable) {
             throw InvalidRequestException("Sent \"$sendBody\"", e)
@@ -151,7 +153,7 @@ object TelegramApi {
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("getMyCommands")
         val response = client.request(HTTPMethod.GET, url)
-            .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+            .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
             .getResponse()
             .readText().use {
                 it.readText()
@@ -167,7 +169,7 @@ object TelegramApi {
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("editMessageText")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -188,7 +190,7 @@ object TelegramApi {
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("sendMessage")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
                 }
