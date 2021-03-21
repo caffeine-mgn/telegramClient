@@ -2,7 +2,6 @@ package pw.binom.telegram
 
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.*
-import pw.binom.io.UTF8
 import pw.binom.io.http.HTTPMethod
 import pw.binom.io.http.Headers
 import pw.binom.io.httpClient.HttpClient
@@ -10,8 +9,8 @@ import pw.binom.io.httpClient.addHeader
 import pw.binom.io.httpClient.setHeader
 import pw.binom.io.readText
 import pw.binom.io.use
+import pw.binom.net.toURIOrNull
 import pw.binom.telegram.dto.*
-import pw.binom.toURIOrNull
 
 private val jsonSerialization = Json {
     ignoreUnknownKeys = true
@@ -22,8 +21,8 @@ private val jsonSerialization = Json {
     classDiscriminator = "@class"
 }
 
-internal const val BASE_PATH = "https://api.telegram.org/bot"
-internal const val BASE_PATH2 = "http://192.168.73.12:8080/bot"
+internal val BASE_PATH = "https://api.telegram.org/bot".toURIOrNull!!
+private val JSON_MIMETYPE = "application/json;charset=utf-8"
 
 object TelegramApi {
 
@@ -34,7 +33,9 @@ object TelegramApi {
         )
 
     suspend fun getWebhook(client: HttpClient, token: String): WebhookInfo? {
-        val url = "$BASE_PATH${UTF8.urlEncode(token)}/getWebhookInfo".toURIOrNull()!!
+        val url = BASE_PATH
+            .appendPath(token, direction = false, encode = true)
+            .appendPath("getWebhookInfo")
         val json = client.request(HTTPMethod.GET, url)
             .getResponse()
             .readText().use {
@@ -50,9 +51,11 @@ object TelegramApi {
     ): Pair<Long, List<Update>> {
         try {
             val url =
-                "$BASE_PATH${UTF8.urlEncode(token)}/getUpdates".toURIOrNull()!!
+                BASE_PATH
+                    .appendPath(token, direction = false, encode = true)
+                    .appendPath("getUpdates")
             val json = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
                 .writeText {
                     it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
                 }
@@ -70,7 +73,10 @@ object TelegramApi {
     }
 
     suspend fun deleteWebhook(client: HttpClient, token: String) {
-        val url = "$BASE_PATH${UTF8.urlEncode(token)}/deleteWebhook".toURIOrNull()!!
+        val url =
+            BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("deleteWebhook")
         val response = client.request(HTTPMethod.POST, url)
             .getResponse()
             .readText().use {
@@ -81,10 +87,13 @@ object TelegramApi {
 
     suspend fun setWebhook(client: HttpClient, token: String, request: SetWebhookRequest) {
         val sendBody = jsonSerialization.encodeToString(SetWebhookRequest.serializer(), request)
-        val url = "$BASE_PATH${UTF8.urlEncode(token)}/setWebhook".toURIOrNull()!!
+        val url =
+            BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("setWebhook")
         try {
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -98,9 +107,12 @@ object TelegramApi {
     suspend fun answerCallbackQuery(client: HttpClient, token: String, query: AnswerCallbackQueryRequest) {
         val sendBody = jsonSerialization.encodeToString(AnswerCallbackQueryRequest.serializer(), query)
         try {
-            val url = "$BASE_PATH${UTF8.urlEncode(token)}/answerCallbackQuery".toURIOrNull()!!
+            val url =
+                BASE_PATH
+                    .appendPath(token, direction = false, encode = true)
+                    .appendPath("answerCallbackQuery")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -116,9 +128,11 @@ object TelegramApi {
     suspend fun setMyCommands(client: HttpClient, token: String, commands: List<BotCommand>) {
         val sendBody = jsonSerialization.encodeToString(ListSerializer(BotCommand.serializer()), commands)
         try {
-            val url = "$BASE_PATH${UTF8.urlEncode(token)}/setMyCommands".toURIOrNull()!!
+            val url = BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("setMyCommands")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -132,9 +146,12 @@ object TelegramApi {
     }
 
     suspend fun getMyCommands(client: HttpClient, token: String): List<BotCommand> {
-        val url = "$BASE_PATH${UTF8.urlEncode(token)}/getMyCommands".toURIOrNull()!!
+        val url =
+            BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("getMyCommands")
         val response = client.request(HTTPMethod.GET, url)
-            .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+            .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
             .getResponse()
             .readText().use {
                 it.readText()
@@ -146,9 +163,11 @@ object TelegramApi {
     suspend fun editMessage(client: HttpClient, token: String, message: EditTextRequest): Message? {
         val sendBody = jsonSerialization.encodeToString(EditTextRequest.serializer(), message)
         try {
-            val url = "$BASE_PATH${UTF8.urlEncode(token)}/editMessageText".toURIOrNull()!!
+            val url = BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("editMessageText")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -165,9 +184,11 @@ object TelegramApi {
     suspend fun sendMessage(client: HttpClient, token: String, message: TextMessage): Message {
         val sendBody = jsonSerialization.encodeToString(TextMessage.serializer(), message)
         try {
-            val url = "$BASE_PATH${UTF8.urlEncode(token)}/sendMessage".toURIOrNull()!!
+            val url = BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("sendMessage")
             val response = client.request(HTTPMethod.POST, url)
-                .setHeader(Headers.CONTENT_TYPE, "application/json;charset=utf-8")
+                .setHeader(Headers.CONTENT_TYPE, JSON_MIMETYPE)
                 .writeText {
                     it.append(sendBody)
                 }
@@ -182,10 +203,12 @@ object TelegramApi {
 
     suspend fun deleteMessage(client: HttpClient, token: String, chatId: String, messageId: Long) {
         val url =
-            "$BASE_PATH${UTF8.urlEncode(token)}/deleteMessage?chat_id=${UTF8.encode(chatId)}&message_id=$messageId"
-                .toURIOrNull()!!
+            BASE_PATH
+                .appendPath(token, direction = false, encode = true)
+                .appendPath("deleteMessage")
+                .appendQuery("chat_id", chatId)
+                .appendQuery("message_id", messageId)
         val response = client.request(HTTPMethod.POST, url)
-            .addHeader(Headers.CONTENT_TYPE, "application/json")
             .getResponse()
             .readText().use {
                 it.readText()
@@ -194,7 +217,9 @@ object TelegramApi {
     }
 
     suspend fun getMe(client: HttpClient, token: String): User {
-        val url = "$BASE_PATH${UTF8.urlEncode(token)}/getMe".toURIOrNull()!!
+        val url = BASE_PATH
+            .appendPath(token, direction = false, encode = true)
+            .appendPath("getMe")
         val response = client.request(HTTPMethod.POST, url)
             .getResponse()
             .readText().use {
