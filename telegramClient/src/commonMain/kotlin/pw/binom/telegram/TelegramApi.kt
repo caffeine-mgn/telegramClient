@@ -140,7 +140,6 @@ object TelegramApi {
                 .readText().use {
                     it.readText()
                 }
-            println("url: ${url}, setMyCommands: ${response}")
             getResult(response)
         } catch (e: Throwable) {
             throw InvalidRequestException("Sent \"$sendBody\"", e)
