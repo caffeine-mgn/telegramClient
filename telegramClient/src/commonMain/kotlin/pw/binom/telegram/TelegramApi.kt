@@ -35,7 +35,7 @@ object TelegramApi {
         val url = BASE_PATH
             .appendPath(token, direction = false, encode = true)
             .appendPath("getWebhookInfo")
-        val json = client.connect(HTTPMethod.GET, url)
+        val json = client.connect(HTTPMethod.GET.code, url)
             .getResponse()
             .readText().use {
                 it.readText()
@@ -53,7 +53,7 @@ object TelegramApi {
                 BASE_PATH
                     .appendPath(token, direction = false, encode = true)
                     .appendPath("getUpdates")
-            val json = client.connect(HTTPMethod.POST, url)
+            val json = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
@@ -76,7 +76,7 @@ object TelegramApi {
             BASE_PATH
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("deleteWebhook")
-        val response = client.connect(HTTPMethod.POST, url)
+        val response = client.connect(HTTPMethod.POST.code, url)
             .getResponse()
             .readText().use {
                 it.readText()
@@ -91,7 +91,7 @@ object TelegramApi {
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("setWebhook")
         try {
-            val response = client.connect(HTTPMethod.POST, url)
+            val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
@@ -110,7 +110,7 @@ object TelegramApi {
                 BASE_PATH
                     .appendPath(token, direction = false, encode = true)
                     .appendPath("answerCallbackQuery")
-            val response = client.connect(HTTPMethod.POST, url)
+            val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
@@ -132,7 +132,7 @@ object TelegramApi {
             val url = BASE_PATH
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("setMyCommands")
-            val response = client.connect(HTTPMethod.POST, url)
+            val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
@@ -151,7 +151,7 @@ object TelegramApi {
             BASE_PATH
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("getMyCommands")
-        val response = client.connect(HTTPMethod.GET, url)
+        val response = client.connect(HTTPMethod.GET.code, url)
             .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
             .getResponse()
             .readText().use {
@@ -167,7 +167,7 @@ object TelegramApi {
             val url = BASE_PATH
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("editMessageText")
-            val response = client.connect(HTTPMethod.POST, url)
+            val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
@@ -188,7 +188,7 @@ object TelegramApi {
             val url = BASE_PATH
                 .appendPath(token, direction = false, encode = true)
                 .appendPath("sendMessage")
-            val response = client.connect(HTTPMethod.POST, url)
+            val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
                 .writeText {
                     it.append(sendBody)
@@ -209,7 +209,7 @@ object TelegramApi {
                 .appendPath("deleteMessage")
                 .appendQuery("chat_id", chatId)
                 .appendQuery("message_id", messageId)
-        val response = client.connect(HTTPMethod.POST, url)
+        val response = client.connect(HTTPMethod.POST.code, url)
             .getResponse()
             .readText().use {
                 it.readText()
@@ -221,7 +221,7 @@ object TelegramApi {
         val url = BASE_PATH
             .appendPath(token, direction = false, encode = true)
             .appendPath("getMe")
-        val response = client.connect(HTTPMethod.POST, url)
+        val response = client.connect(HTTPMethod.POST.code, url)
             .getResponse()
             .readText().use {
                 it.readText()
@@ -233,12 +233,10 @@ object TelegramApi {
         val tree = jsonSerialization.parseToJsonElement(json).jsonObject
         if (tree["ok"]?.jsonPrimitive?.boolean != true) {
             val code = tree["error_code"]?.jsonPrimitive?.int ?: 0
-            throw when (code) {
-                else -> TelegramException(
-                    code = code,
-                    description = tree["description"]?.jsonPrimitive?.content ?: "Unknown Error"
-                )
-            }
+            throw TelegramException(
+                code = code,
+                description = tree["description"]?.jsonPrimitive?.content ?: "Unknown Error"
+            )
         }
         return tree["result"]
     }
