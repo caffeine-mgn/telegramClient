@@ -23,6 +23,7 @@ private val jsonSerialization = Json {
 private val BASE_PATH = "https://api.telegram.org/bot".toURI()
 private val JSON_MIME_TYPE = "application/json;charset=utf-8"
 
+@OptIn(kotlin.time.ExperimentalTime::class)
 object TelegramApi {
 
     fun parseUpdate(json: String) =
