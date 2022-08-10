@@ -8,41 +8,41 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class CallbackQuery(
-        /**
-         * Unique identifier for this query
-         */
-        val id: String,
+    /**
+     * Unique identifier for this query
+     */
+    val id: String,
 
-        /**
-         * Sender
-         */
-        val from: User,
+    /**
+     * Sender
+     */
+    val from: User,
 
-        /**
-         * Message with the callback button that originated the query. Note that message content and message date will not be available if the message is too old
-         */
-        val message: Message? = null,
+    /**
+     * Message with the callback button that originated the query. Note that message content and message date will not be available if the message is too old
+     */
+    val message: Message? = null,
 
-        /**
-         * Identifier of the message sent via the bot in inline mode, that originated the query.
-         */
-        @SerialName("inline_message_id")
-        val inlineMessageId: String? = null,
+    /**
+     * Identifier of the message sent via the bot in inline mode, that originated the query.
+     */
+    @SerialName("inline_message_id")
+    val inlineMessageId: String? = null,
 
-        /**
-         * Global identifier, uniquely corresponding to the chat to which the message with the callback button was sent. Useful for high scores in games.
-         */
-        @SerialName("chat_instance")
-        val chatInstance: String,
+    /**
+     * Global identifier, uniquely corresponding to the chat to which the message with the callback button was sent. Useful for high scores in games.
+     */
+    @SerialName("chat_instance")
+    val chatInstance: String,
 
-        /**
-         * Data associated with the callback button. Be aware that a bad client can send arbitrary data in this field.
-         */
-        val data: String? = null,
+    /**
+     * Data associated with the callback button. Be aware that a bad client can send arbitrary data in this field.
+     */
+    val data: String? = null,
 
-        /**
-         * Short name of a Game to be returned, serves as the unique identifier for the game
-         */
-        @SerialName("game_short_name")
-        val gameShortName: String? = null
+    /**
+     * Short name of a Game to be returned, serves as the unique identifier for the game
+     */
+    @SerialName("game_short_name")
+    val gameShortName: String? = null
 )

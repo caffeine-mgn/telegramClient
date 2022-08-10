@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 class Response<T>(
-        val ok: Boolean,
-        val result: T
+    val ok: Boolean,
+    val result: T
 )

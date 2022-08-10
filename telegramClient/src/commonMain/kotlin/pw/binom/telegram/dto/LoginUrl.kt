@@ -14,7 +14,6 @@ class LoginUrl(
      */
     val url: String,
 
-
     /**
      * New text of the button in forwarded messages.
      */

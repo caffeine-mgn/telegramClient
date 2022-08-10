@@ -8,6 +8,7 @@ import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import java.net.URI
 import java.util.logging.Logger
+/*
 
 const val BINOM_REPO_URL = "binom.repo.url"
 const val BINOM_REPO_USER = "binom.repo.user"
@@ -66,4 +67,4 @@ class BinomPublishPlugin : Plugin<Project> {
             }
         }
     }
-}
+}*/

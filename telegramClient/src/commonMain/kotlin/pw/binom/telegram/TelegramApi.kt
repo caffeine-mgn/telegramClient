@@ -4,11 +4,11 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.*
 import pw.binom.io.http.HTTPMethod
 import pw.binom.io.http.Headers
-import pw.binom.io.httpClient.*
+import pw.binom.io.httpClient.HttpClient
 import pw.binom.io.httpClient.setHeader
 import pw.binom.io.readText
 import pw.binom.io.use
-import pw.binom.net.toURI
+import pw.binom.net.toURL
 import pw.binom.telegram.dto.*
 
 private val jsonSerialization = Json {
@@ -20,7 +20,7 @@ private val jsonSerialization = Json {
     classDiscriminator = "@class"
 }
 
-private val BASE_PATH = "https://api.telegram.org/bot".toURI()
+private val BASE_PATH = "https://api.telegram.org/bot".toURL()
 private val JSON_MIME_TYPE = "application/json;charset=utf-8"
 
 @OptIn(kotlin.time.ExperimentalTime::class)
@@ -47,7 +47,7 @@ object TelegramApi {
     suspend fun getUpdate(
         client: HttpClient,
         token: String,
-        updateRequest: UpdateRequest,
+        updateRequest: UpdateRequest
     ): Pair<Long, List<Update>> {
         try {
             val url =
@@ -161,7 +161,6 @@ object TelegramApi {
         return jsonSerialization.decodeFromJsonElement(ListSerializer(BotCommand.serializer()), getResult(response)!!)
     }
 
-
     suspend fun editMessage(client: HttpClient, token: String, message: EditTextRequest): Message? {
         val sendBody = jsonSerialization.encodeToString(EditTextRequest.serializer(), message)
         try {
@@ -241,5 +240,4 @@ object TelegramApi {
         }
         return tree["result"]
     }
-
 }

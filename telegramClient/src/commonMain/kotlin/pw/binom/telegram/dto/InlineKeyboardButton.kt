@@ -43,14 +43,12 @@ data class InlineKeyboardButton(
     @SerialName("switch_inline_query_current_chat")
     val switchInlineQueryCurrentChat: String? = null,
 
-
     /**
      * Description of the game that will be launched when the user presses the button.
      * NOTE: This type of button must always be the first button in the first row.
      */
     @SerialName("callback_game")
     val callbackGame: CallbackGame? = null,
-
 
     /**
      * Specify True, to send a Pay button.

@@ -1,12 +1,10 @@
-import pw.binom.*
-//apply plugin: 'maven-publish'
-//apply plugin: 'org.jetbrains.kotlin.multiplatform'
-//apply plugin: 'kotlinx-serialization'
+import pw.binom.Versions
+
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("kotlinx-serialization")
+    id("maven-publish")
 }
-apply<pw.binom.plugins.BinomPublishPlugin>()
 
 kotlin {
     linuxX64()
@@ -18,7 +16,6 @@ kotlin {
         mingwX86()
     }
     macosX64()
-    baseStaticLibConfig()
     jvm()
 
     sourceSets {
@@ -26,10 +23,10 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api("org.jetbrains.kotlin:kotlin-stdlib-common:${Versions.KOTLIN_VERSION}")
-                api ("pw.binom.io:httpClient:${Versions.HTTP_VERSION}")
+                api("pw.binom.io:httpClient:${Versions.HTTP_VERSION}")
 //                api ("pw.binom.io:core:$network_version")
-                api ("org.jetbrains.kotlinx:kotlinx-serialization-core:${Versions.KOTLINX_SERIALIZATION_VERSION}")
-                api ("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.KOTLINX_SERIALIZATION_VERSION}")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-core:${Versions.KOTLINX_SERIALIZATION_VERSION}")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.KOTLINX_SERIALIZATION_VERSION}")
             }
         }
 
@@ -37,6 +34,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-test:${Versions.KOTLINX_COROUTINES_VERSION}")
             }
         }
 
@@ -85,4 +83,14 @@ kotlin {
     }
 }
 
-apply<pw.binom.plugins.DocsPlugin>()
+apply<pw.binom.publish.plugins.PrepareProject>()
+
+extensions.getByType(pw.binom.publish.plugins.PublicationPomInfoExtension::class).apply {
+    useApache2License()
+    gitScm("https://github.com/caffeine-mgn/telegramClient")
+    author(
+        id = "subochev",
+        name = "Anton Subochev",
+        email = "caffeine.mgn@gmail.com"
+    )
+}
