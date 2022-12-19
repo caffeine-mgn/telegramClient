@@ -1,7 +1,6 @@
 package pw.binom.telegram
 
 import pw.binom.io.httpClient.HttpClient
-import pw.binom.neverFreeze
 import pw.binom.telegram.dto.*
 
 class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: HttpClient) : TelegramClient {
@@ -60,8 +59,4 @@ class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: Ht
 
     override suspend fun getMe(): User =
         TelegramApi.getMe(client, token)
-
-    init {
-        neverFreeze()
-    }
 }

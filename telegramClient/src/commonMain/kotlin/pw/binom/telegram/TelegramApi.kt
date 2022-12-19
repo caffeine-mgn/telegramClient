@@ -8,8 +8,8 @@ import pw.binom.io.httpClient.HttpClient
 import pw.binom.io.httpClient.setHeader
 import pw.binom.io.readText
 import pw.binom.io.use
-import pw.binom.net.toURL
 import pw.binom.telegram.dto.*
+import pw.binom.url.toURL
 
 private val jsonSerialization = Json {
     ignoreUnknownKeys = true
@@ -59,7 +59,7 @@ object TelegramApi {
                 .writeText {
                     it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
                 }
-                .readText().use {
+                .readText {
                     it.readText()
                 }
             val resultJsonTree = getResult(json)
