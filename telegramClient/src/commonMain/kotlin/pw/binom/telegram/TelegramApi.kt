@@ -56,7 +56,7 @@ object TelegramApi {
                     .appendPath("getUpdates")
             val json = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeText {
+                .writeTextAndGetResponse {
                     it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
                 }
                 .readText {
@@ -94,7 +94,7 @@ object TelegramApi {
         try {
             val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeText {
+                .writeTextAndGetResponse {
                     it.append(sendBody)
                 }
                 .readText().use { it.readText() }
@@ -113,7 +113,7 @@ object TelegramApi {
                     .appendPath("answerCallbackQuery")
             val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeText {
+                .writeTextAndGetResponse {
                     it.append(sendBody)
                 }
                 .readText().use {
@@ -135,7 +135,7 @@ object TelegramApi {
                 .appendPath("setMyCommands")
             val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeText {
+                .writeTextAndGetResponse {
                     it.append(sendBody)
                 }
                 .readText().use {
@@ -169,7 +169,7 @@ object TelegramApi {
                 .appendPath("editMessageText")
             val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeText {
+                .writeTextAndGetResponse {
                     it.append(sendBody)
                 }
                 .readText().use {
@@ -190,7 +190,7 @@ object TelegramApi {
                 .appendPath("sendMessage")
             val response = client.connect(HTTPMethod.POST.code, url)
                 .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeText {
+                .writeTextAndGetResponse {
                     it.append(sendBody)
                 }
                 .readText().use {

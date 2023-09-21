@@ -5,12 +5,12 @@ buildscript {
         maven(url = "https://repo.binom.pw")
     }
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.10")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.21")
     }
 }
 
 plugins {
-    kotlin("jvm") version "1.7.10"
+    kotlin("jvm") version "1.8.21"
     id("com.github.gmazzo.buildconfig") version "3.0.3"
 }
 
