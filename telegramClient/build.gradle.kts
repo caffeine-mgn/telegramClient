@@ -1,32 +1,27 @@
-import pw.binom.Versions
+import pw.binom.publish.allTargets
 
 plugins {
-    id("org.jetbrains.kotlin.multiplatform")
-    id("kotlinx-serialization")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.binom.publish)
     id("maven-publish")
 }
 
 kotlin {
-    linuxX64()
-    if (pw.binom.Target.LINUX_ARM32HFP_SUPPORT) {
-        linuxArm32Hfp()
+    allTargets {
+        -"js"
+        -"wasmJs"
+        -"wasmWasi"
     }
-    mingwX64()
-    if (pw.binom.Target.MINGW_X86_SUPPORT) {
-        mingwX86()
-    }
-    macosX64()
-    jvm()
 
     sourceSets {
 
         val commonMain by getting {
             dependencies {
-                api("org.jetbrains.kotlin:kotlin-stdlib-common:${Versions.KOTLIN_VERSION}")
-                api("pw.binom.io:httpClient:${Versions.HTTP_VERSION}")
-//                api ("pw.binom.io:core:$network_version")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-core:${Versions.KOTLINX_SERIALIZATION_VERSION}")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.KOTLINX_SERIALIZATION_VERSION}")
+                api(kotlin("stdlib-common"))
+                api(libs.binom.io.http.client)
+                api(libs.kotlinx.serialization.core)
+                api(libs.kotlinx.serialization.json)
             }
         }
 
@@ -34,20 +29,13 @@ kotlin {
             dependencies {
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-test:${Versions.KOTLINX_COROUTINES_VERSION}")
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
-
+/*
         val linuxX64Main by getting {
             dependencies {
                 dependsOn(commonMain)
-            }
-        }
-        if (pw.binom.Target.LINUX_ARM32HFP_SUPPORT) {
-            val linuxArm32HfpMain by getting {
-                dependencies {
-                    dependsOn(linuxX64Main)
-                }
             }
         }
 
@@ -61,20 +49,13 @@ kotlin {
                 dependsOn(linuxX64Main)
             }
         }
-        if (pw.binom.Target.MINGW_X86_SUPPORT) {
-            val mingwX86Main by getting {
-                dependencies {
-                    dependsOn(mingwX64Main)
-                }
-            }
-        }
 
         val jvmMain by getting {
             dependencies {
-                api("org.jetbrains.kotlin:kotlin-stdlib:${Versions.KOTLIN_VERSION}")
+                api(kotlin("stdlib"))
             }
         }
-
+*/
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))
@@ -83,7 +64,7 @@ kotlin {
     }
 }
 
-apply<pw.binom.publish.plugins.PrepareProject>()
+//apply<pw.binom.publish.plugins.PrepareProject>()
 
 extensions.getByType(pw.binom.publish.plugins.PublicationPomInfoExtension::class).apply {
     useApache2License()

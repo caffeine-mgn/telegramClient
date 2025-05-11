@@ -1,14 +1,17 @@
 package pw.binom.telegram
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.*
-import pw.binom.io.http.HTTPMethod
-import pw.binom.io.http.Headers
+import pw.binom.http.client.HttpClientRunnable
+import pw.binom.io.http.*
 import pw.binom.io.httpClient.HttpClient
 import pw.binom.io.httpClient.setHeader
-import pw.binom.io.readText
-import pw.binom.io.use
+import pw.binom.io.useAsync
 import pw.binom.telegram.dto.*
+import pw.binom.url.Query
 import pw.binom.url.toURL
 
 private val jsonSerialization = Json {
@@ -32,202 +35,192 @@ object TelegramApi {
             jsonSerialization.parseToJsonElement(json)
         )
 
-    suspend fun getWebhook(client: HttpClient, token: String): WebhookInfo? {
-        val url = BASE_PATH
-            .appendPath(token, direction = false, encode = true)
-            .appendPath("getWebhookInfo")
-        val json = client.connect(HTTPMethod.GET.code, url)
-            .getResponse()
-            .readText().use {
-                it.readText()
-            }
-        return jsonSerialization.decodeFromJsonElement(WebhookInfo.serializer(), getResult(json) ?: return null)
-    }
+    suspend fun getWebhook(client: HttpClientRunnable, token: String): WebhookInfo? =
+        send(
+            client = client,
+            method = "GET",
+            token = token,
+            requestSerializer = Unit.serializer(),
+            request = Unit,
+            responseSerializer = WebhookInfo.serializer().nullable,
+            function = "getWebhookInfo",
+            query = null,
+        )
 
     suspend fun getUpdate(
-        client: HttpClient,
+        client: HttpClientRunnable,
         token: String,
-        updateRequest: UpdateRequest
+        updateRequest: UpdateRequest,
     ): Pair<Long, List<Update>> {
-        try {
-            val url =
-                BASE_PATH
-                    .appendPath(token, direction = false, encode = true)
-                    .appendPath("getUpdates")
-            val json = client.connect(HTTPMethod.POST.code, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeTextAndGetResponse {
-                    it.append(jsonSerialization.encodeToString(UpdateRequest.serializer(), updateRequest))
-                }
-                .readText {
-                    it.readText()
-                }
-            val resultJsonTree = getResult(json)
-            val updates =
-                jsonSerialization.decodeFromJsonElement(ListSerializer(Update.serializer()), resultJsonTree!!.jsonArray)
-            val updateId = updates.lastOrNull()?.updateId
-            return (updateId ?: 0L) to updates
-        } catch (e: Throwable) {
-            throw InvalidRequestException("Can't get Telegram Updates", e)
-        }
+        val updates = send(
+            client = client,
+            method = "POST",
+            token = token,
+            requestSerializer = UpdateRequest.serializer(),
+            request = updateRequest,
+            responseSerializer = ListSerializer(Update.serializer()),
+            function = "deleteWebhook",
+            query = null,
+        )
+        val updateId = updates.lastOrNull()?.updateId
+        return (updateId ?: 0L) to updates
     }
 
-    suspend fun deleteWebhook(client: HttpClient, token: String) {
-        val url =
-            BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("deleteWebhook")
-        val response = client.connect(HTTPMethod.POST.code, url)
-            .getResponse()
-            .readText().use {
-                it.readText()
+    suspend fun deleteWebhook(client: HttpClientRunnable, token: String) {
+        send(
+            client = client,
+            method = "POST",
+            token = token,
+            requestSerializer = Unit.serializer(),
+            request = Unit,
+            responseSerializer = Unit.serializer(),
+            function = "deleteWebhook",
+            query = null,
+        )
+    }
+
+    private suspend fun <REQUEST, RESPOSNE> send(
+        client: HttpClientRunnable,
+        method: String,
+        token: String,
+        requestSerializer: KSerializer<REQUEST>,
+        responseSerializer: KSerializer<RESPOSNE>,
+        request: REQUEST,
+        function: String,
+        query: Query?,
+    ): RESPOSNE {
+        var url = BASE_PATH
+            .appendPath("bot$token", direction = false, encode = true)
+            .appendPath(function)
+        if (query != null) {
+            url = url.copy(query = query)
+        }
+        val req = client.request(
+            method = method,
+            url = url,
+        )
+        req.headers.contentType = JSON_MIME_TYPE
+        req.headers.httpContentLength = HttpContentLength.CHUNKED
+        val responseText = req.connect().useAsync { connection ->
+            if (requestSerializer != Unit.serializer()) {
+                val requestJson = jsonSerialization.encodeToString(requestSerializer, request)
+                connection.sendText(requestJson)
             }
-        getResult(response)
-    }
-
-    suspend fun setWebhook(client: HttpClient, token: String, request: SetWebhookRequest) {
-        val sendBody = jsonSerialization.encodeToString(SetWebhookRequest.serializer(), request)
-        val url =
-            BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("setWebhook")
-        try {
-            val response = client.connect(HTTPMethod.POST.code, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeTextAndGetResponse {
-                    it.append(sendBody)
-                }
-                .readText().use { it.readText() }
-            getResult(response)
-        } catch (e: Throwable) {
-            throw InvalidRequestException("Sent \"$sendBody\"", e)
+            require(connection.getResponseCode() == 200) { "Response code is ${connection.getResponseCode()}" }
+            connection.readAllText()
         }
-    }
-
-    suspend fun answerCallbackQuery(client: HttpClient, token: String, query: AnswerCallbackQueryRequest) {
-        val sendBody = jsonSerialization.encodeToString(AnswerCallbackQueryRequest.serializer(), query)
-        try {
-            val url =
-                BASE_PATH
-                    .appendPath(token, direction = false, encode = true)
-                    .appendPath("answerCallbackQuery")
-            val response = client.connect(HTTPMethod.POST.code, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeTextAndGetResponse {
-                    it.append(sendBody)
-                }
-                .readText().use {
-                    it.readText()
-                }
-            getResult(response)
-        } catch (e: Throwable) {
-            throw InvalidRequestException("Sent \"$sendBody\"", e)
+        if (responseSerializer === Unit.serializer()) {
+            return Unit as RESPOSNE
         }
-    }
-
-    suspend fun setMyCommands(client: HttpClient, token: String, commands: List<BotCommand>) {
-        val sendBody =
-            jsonSerialization
-                .encodeToString(SetMyCommandsRequest.serializer(), SetMyCommandsRequest(commands))
-        try {
-            val url = BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("setMyCommands")
-            val response = client.connect(HTTPMethod.POST.code, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeTextAndGetResponse {
-                    it.append(sendBody)
-                }
-                .readText().use {
-                    it.readText()
-                }
-            getResult(response)
-        } catch (e: Throwable) {
-            throw InvalidRequestException("Sent \"$sendBody\"", e)
-        }
-    }
-
-    suspend fun getMyCommands(client: HttpClient, token: String): List<BotCommand> {
-        val url =
-            BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("getMyCommands")
-        val response = client.connect(HTTPMethod.GET.code, url)
-            .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-            .getResponse()
-            .readText().use {
-                it.readText()
+        val resp = getResult(responseText)
+        if (resp == null) {
+            if (responseSerializer.descriptor.isNullable) {
+                return null as RESPOSNE
             }
-        return jsonSerialization.decodeFromJsonElement(ListSerializer(BotCommand.serializer()), getResult(response)!!)
-    }
-
-    suspend fun editMessage(client: HttpClient, token: String, message: EditTextRequest): Message? {
-        val sendBody = jsonSerialization.encodeToString(EditTextRequest.serializer(), message)
-        try {
-            val url = BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("editMessageText")
-            val response = client.connect(HTTPMethod.POST.code, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeTextAndGetResponse {
-                    it.append(sendBody)
-                }
-                .readText().use {
-                    it.readText()
-                }
-            val result = getResult(response) ?: return null
-            return jsonSerialization.decodeFromJsonElement(Message.serializer(), result)
-        } catch (e: Throwable) {
-            throw InvalidRequestException("Sent \"$sendBody\"", e)
+            throw IllegalStateException("Returns unexpected null")
         }
+        return jsonSerialization.decodeFromJsonElement(responseSerializer, resp)
     }
 
-    suspend fun sendMessage(client: HttpClient, token: String, message: TextMessage): Message {
-        val sendBody = jsonSerialization.encodeToString(TextMessage.serializer(), message)
-        try {
-            val url = BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("sendMessage")
-            val response = client.connect(HTTPMethod.POST.code, url)
-                .setHeader(Headers.CONTENT_TYPE, JSON_MIME_TYPE)
-                .writeTextAndGetResponse {
-                    it.append(sendBody)
-                }
-                .readText().use {
-                    it.readText()
-                }
-            return jsonSerialization.decodeFromJsonElement(Message.serializer(), getResult(response)!!)
-        } catch (e: Throwable) {
-            throw InvalidRequestException("Sent \"$sendBody\"", e)
-        }
+    suspend fun setWebhook(client: HttpClientRunnable, token: String, request: SetWebhookRequest) {
+        send(
+            client = client,
+            token = token,
+            requestSerializer = SetWebhookRequest.serializer(),
+            responseSerializer = Unit.serializer(),
+            request = request,
+            function = "setWebhook",
+            method = "POST",
+            query = null,
+        )
     }
 
-    suspend fun deleteMessage(client: HttpClient, token: String, chatId: String, messageId: Long) {
-        val url =
-            BASE_PATH
-                .appendPath(token, direction = false, encode = true)
-                .appendPath("deleteMessage")
-                .appendQuery("chat_id", chatId)
-                .appendQuery("message_id", messageId)
-        val response = client.connect(HTTPMethod.POST.code, url)
-            .getResponse()
-            .readText().use {
-                it.readText()
-            }
-        getResult(response)
+    suspend fun answerCallbackQuery(client: HttpClientRunnable, token: String, query: AnswerCallbackQueryRequest) {
+        send(
+            client = client,
+            token = token,
+            requestSerializer = AnswerCallbackQueryRequest.serializer(),
+            request = query,
+            responseSerializer = Unit.serializer(),
+            function = "answerCallbackQuery",
+            method = "POST",
+            query = null,
+        )
     }
 
-    suspend fun getMe(client: HttpClient, token: String): User {
-        val url = BASE_PATH
-            .appendPath(token, direction = false, encode = true)
-            .appendPath("getMe")
-        val response = client.connect(HTTPMethod.POST.code, url)
-            .getResponse()
-            .readText().use {
-                it.readText()
-            }
-        return jsonSerialization.decodeFromJsonElement(User.serializer(), getResult(response)!!)
+    suspend fun setMyCommands(client: HttpClientRunnable, token: String, commands: List<BotCommand>) {
+        send(
+            client = client,
+            token = token,
+            requestSerializer = SetMyCommandsRequest.serializer(),
+            request = SetMyCommandsRequest(commands),
+            responseSerializer = Unit.serializer(),
+            function = "setMyCommands",
+            method = "POST",
+            query = null,
+        )
     }
+
+    suspend fun getMyCommands(client: HttpClientRunnable, token: String) =
+        send(
+            client = client,
+            token = token,
+            requestSerializer = Unit.serializer(),
+            responseSerializer = ListSerializer(BotCommand.serializer()),
+            request = Unit,
+            function = "getMyCommands",
+            method = "GET",
+            query = null,
+        )
+
+    suspend fun editMessage(client: HttpClientRunnable, token: String, message: EditTextRequest) =
+        send(
+            client = client,
+            token = token,
+            requestSerializer = EditTextRequest.serializer(),
+            responseSerializer = Message.serializer().nullable,
+            request = message,
+            function = "editMessageText",
+            method = "POST",
+            query = null,
+        )
+
+    suspend fun sendMessage(client: HttpClientRunnable, token: String, message: TextMessage) =
+        send(
+            client = client,
+            token = token,
+            requestSerializer = TextMessage.serializer(),
+            request = message,
+            responseSerializer = Message.serializer(),
+            function = "sendMessage",
+            method = "POST",
+            query = null,
+        )
+
+    suspend fun deleteMessage(client: HttpClientRunnable, token: String, chatId: String, messageId: Long) {
+        send(
+            client = client,
+            method = "POST",
+            requestSerializer = Unit.serializer(),
+            request = Unit,
+            responseSerializer = User.serializer(),
+            function = "deleteMessage",
+            token = token,
+            query = Query.new("chat_id", chatId).append("message_id", messageId.toString()),
+        )
+    }
+
+    suspend fun getMe(client: HttpClientRunnable, token: String) =
+        send(
+            client = client,
+            method = "GET",
+            requestSerializer = Unit.serializer(),
+            request = Unit,
+            responseSerializer = User.serializer(),
+            function = "getMe",
+            token = token,
+            query = null,
+        )
 
     private fun getResult(json: String): JsonElement? {
         val tree = jsonSerialization.parseToJsonElement(json).jsonObject

@@ -1,11 +1,15 @@
 package pw.binom.telegram
 
+import pw.binom.http.client.HttpClientRunnable
 import pw.binom.io.httpClient.HttpClient
 import pw.binom.telegram.dto.*
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: HttpClient) : TelegramClient {
+@OptIn(ExperimentalAtomicApi::class)
+class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: HttpClientRunnable) : TelegramClient {
 
-    private var watingUpdate = false
+    private var watingUpdate = AtomicBoolean(false)
     private val updateRequest = UpdateRequest(offset = lastUpdate, limit = null, timeout = 60, null)
 
     override suspend fun getUpdate(
@@ -13,19 +17,19 @@ class TelegramClientImpl(lastUpdate: Long = 0, val token: String, val client: Ht
         timeout: Long,
         allowedUpdates: List<EventType>?,
     ): List<Update> {
-        check(!watingUpdate) { "You already waiting messages" }
+        check(watingUpdate.compareAndSet(false, true)) { "You already waiting messages" }
         try {
             updateRequest.also {
                 it.limit = limit
                 it.timeout = timeout
                 it.allowedUpdates = allowedUpdates
             }
-            watingUpdate = true
+            watingUpdate.store(true)
             val r = TelegramApi.getUpdate(client, token, updateRequest)
             updateRequest.offset = r.first + 1
             return r.second
         } finally {
-            watingUpdate = false
+            watingUpdate.store(false)
         }
     }
 

@@ -1,0 +1,26 @@
+[versions]
+kotlin = "2.1.20"
+kotlinx-serialization = "1.8.1"
+kotlinx-coroutines = "1.10.2"
+binom-io = "1.0.0-SNAPSHOT"
+binom-publish = "0.1.24"
+antlr = "1.0.0"
+
+[libraries]
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+binom-io-http-client = { module = "pw.binom.io:httpClient", version.ref = "binom-io" }
+binom-io-core = { module = "pw.binom.io:core", version.ref = "binom-io" }
+binom-io-file = { module = "pw.binom.io:file", version.ref = "binom-io" }
+binom-io-date = { module = "pw.binom.io:date", version.ref = "binom-io" }
+antlr = { module = "com.strumenta:antlr-kotlin-runtime", version.ref = "antlr" }
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+binom-publish = { id = "pw.binom.publish", version.ref = "binom-publish" }
+antlr = { id = "com.strumenta.antlr-kotlin", version.ref = "antlr" }
+gradle-plugin-publish = { id = "com.gradle.plugin-publish", version = "0.16.0" }

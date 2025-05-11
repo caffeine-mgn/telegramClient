@@ -1,11 +1,12 @@
 package pw.binom.telegram
 
+import pw.binom.http.client.HttpClientRunnable
 import pw.binom.io.httpClient.HttpClient
 import pw.binom.telegram.dto.*
 
 interface TelegramClient {
     companion object {
-        fun open(httpClient: HttpClient, token: String, lastUpdate: Long = 0) = TelegramClientImpl(
+        fun open(httpClient: HttpClientRunnable, token: String, lastUpdate: Long = 0) = TelegramClientImpl(
             lastUpdate = lastUpdate,
             token = token,
             client = httpClient
