@@ -82,8 +82,4 @@ enum class EventType {
      */
     @SerialName("chat_member")
     CHAT_MEMBER;
-
-    companion object {
-        val ALL = values().toList()
-    }
 }

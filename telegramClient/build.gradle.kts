@@ -30,32 +30,9 @@ kotlin {
                 implementation(kotlin("test-common"))
                 implementation(kotlin("test-annotations-common"))
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.binom.io.file)
             }
         }
-/*
-        val linuxX64Main by getting {
-            dependencies {
-                dependsOn(commonMain)
-            }
-        }
-
-        val macosX64Main by getting {
-            dependencies {
-                dependsOn(linuxX64Main)
-            }
-        }
-        val mingwX64Main by getting {
-            dependencies {
-                dependsOn(linuxX64Main)
-            }
-        }
-
-        val jvmMain by getting {
-            dependencies {
-                api(kotlin("stdlib"))
-            }
-        }
-*/
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test-junit"))

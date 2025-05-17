@@ -6,6 +6,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class UpdateRequest(
     var offset: Long?,
+    /**
+     * Timeout in seconds
+     */
     var limit: Long?,
     var timeout: Long,
 

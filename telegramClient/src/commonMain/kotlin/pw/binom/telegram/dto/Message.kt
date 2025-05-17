@@ -6,10 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Message(
     @SerialName("message_id")
-    val messageId: Long,
+    val messageId: Long? = null,
     val from: User? = null,
-    val date: Long,
-    val chat: Chat,
+    val date: Long? = null,
+    val chat: Chat? = null,
     @SerialName("forward_from")
     val forwardFrom: User? = null,
 
@@ -103,5 +103,5 @@ data class Message(
     val passportData: PassportData? = null,
 
     @SerialName("reply_markup")
-    val replyMarkup: InlineKeyboardMarkup? = null
+    val replyMarkup: InlineKeyboardMarkup? = null,
 )
