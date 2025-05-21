@@ -40,6 +40,8 @@ private const val METHOD_GET = "GET"
 @OptIn(kotlin.time.ExperimentalTime::class)
 object TelegramApi {
 
+    const val BOT_API_SECRET_TOKEN_HEADER = "X-Telegram-Bot-Api-Secret-Token"
+
     fun parseUpdate(json: String) =
         jsonSerialization.decodeFromJsonElement(
             Update.serializer(),
@@ -111,7 +113,7 @@ object TelegramApi {
         token: String,
         filePath: String,
     ): AsyncInput {
-        val resultUrl=BASE_PATH.appendPath("/file/bot$token/$filePath")
+        val resultUrl = BASE_PATH.appendPath("/file/bot$token/$filePath")
         val request = client.request(
             method = METHOD_GET,
             url = resultUrl,
