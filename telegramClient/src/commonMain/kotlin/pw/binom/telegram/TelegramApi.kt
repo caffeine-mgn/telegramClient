@@ -40,6 +40,51 @@ private fun functionPath(baseUrl: String, token: String, function: String): Stri
 private fun filePath(baseUrl: String, token: String, filePath: String): String =
     "$baseUrl/file/bot$token/$filePath"
 
+/**
+ * Append an [InputFile] to a multipart form. For [FileId] and [Url] the value is sent as a
+ * plain string field; for [InputFile.Multipart] it is uploaded as a multipart section whose
+ * body is produced lazily by the [InputFile.Multipart.data] callback.
+ */
+internal fun FormBuilder.appendInput(key: String, file: InputFile) {
+    when (file) {
+        is InputFile.FileId -> append(key, file.fileId)
+        is InputFile.Url -> append(key, file.url)
+        is InputFile.Multipart -> {
+            val headers = Headers.build {
+                append(HttpHeaders.ContentType, file.contentType)
+                append(HttpHeaders.ContentDisposition, "filename=\"${file.fileName}\"")
+            }
+            val buffer = kotlinx.io.Buffer()
+            file.data(buffer)
+            appendInput(key = key, headers = headers, size = file.size) { buffer }
+        }
+    }
+}
+
+internal fun FormBuilder.appendOptional(key: String, value: String?) {
+    if (value != null) append(key, value)
+}
+
+internal fun FormBuilder.appendOptional(key: String, value: Boolean?) {
+    if (value != null) append(key, value)
+}
+
+internal fun FormBuilder.appendOptional(key: String, value: Int?) {
+    if (value != null) append(key, value)
+}
+
+internal fun FormBuilder.appendOptional(key: String, value: Long?) {
+    if (value != null) append(key, value)
+}
+
+internal fun FormBuilder.appendOptional(key: String, value: Double?) {
+    if (value != null) append(key, value)
+}
+
+internal fun FormBuilder.appendOptional(key: String, file: InputFile?) {
+    if (file != null) appendInput(key, file)
+}
+
 @OptIn(ExperimentalTime::class)
 object TelegramApi {
 
@@ -72,54 +117,64 @@ object TelegramApi {
         token: String,
         data: SendChatEvent,
         baseUrl: String = DEFAULT_BASE_URL,
-    ) {
-        send(
+    ): Boolean {
+        send<SendChatEvent, Boolean>(
             function = "sendChatAction",
             method = HttpMethod.Post,
             requestSerializer = SendChatEvent.serializer(),
             request = data,
-            responseSerializer = Unit.serializer(),
+            responseSerializer = Boolean.serializer(),
             client = client,
             token = token,
             baseUrl = baseUrl,
         )
+        return true
     }
 
     suspend fun getUpdate(
         client: HttpClient,
         token: String,
-        updateRequest: UpdateRequest,
+        offset: Long? = null,
+        limit: Int? = null,
+        timeout: Int? = null,
+        allowedUpdates: List<String>? = null,
         baseUrl: String = DEFAULT_BASE_URL,
-    ): Pair<Long, List<Update>> {
-        val updates = send(
+    ): List<Update> {
+        val params = ParametersBuilder().apply {
+            offset?.let { append("offset", it.toString()) }
+            limit?.let { append("limit", it.toString()) }
+            timeout?.let { append("timeout", it.toString()) }
+            allowedUpdates?.let { append("allowed_updates", allowedUpdates.joinToString(",")) }
+        }.build()
+        return send(
             client = client,
             token = token,
             baseUrl = baseUrl,
-            requestSerializer = UpdateRequest.serializer(),
-            request = updateRequest,
+            requestSerializer = Unit.serializer(),
+            request = Unit,
+            parameters = params,
             responseSerializer = ListSerializer(Update.serializer()),
             function = "getUpdates",
-            method = HttpMethod.Get,
+            method = HttpMethod.Post,
         )
-        val updateId = updates.lastOrNull()?.updateId
-        return (updateId ?: 0L) to updates
     }
 
     suspend fun deleteWebhook(
         client: HttpClient,
         token: String,
         baseUrl: String = DEFAULT_BASE_URL,
-    ) {
-        send(
+    ): Boolean {
+        send<Unit, Boolean>(
             client = client,
             method = HttpMethod.Post,
             token = token,
             baseUrl = baseUrl,
             requestSerializer = Unit.serializer(),
             request = Unit,
-            responseSerializer = Unit.serializer(),
+            responseSerializer = Boolean.serializer(),
             function = "deleteWebhook",
         )
+        return true
     }
 
     suspend fun downloadFile(
@@ -131,6 +186,19 @@ object TelegramApi {
         val response = client.get(filePath(baseUrl, token, filePath))
         check(response.status == HttpStatusCode.OK) { "Invalid response code ${response.status}" }
         return response.bodyAsChannel()
+    }
+
+    suspend fun downloadFileById(
+        client: HttpClient,
+        token: String,
+        fileId: String,
+        baseUrl: String = DEFAULT_BASE_URL,
+    ): ByteReadChannel {
+        val file = getFile(client, token, fileId, baseUrl)
+        val path = requireNotNull(file.filePath) {
+            "Telegram did not return a file_path for $fileId; the file is empty or has been lost."
+        }
+        return downloadFile(client, token, path, baseUrl)
     }
 
     suspend fun getFile(
@@ -174,6 +242,8 @@ object TelegramApi {
             append(HttpHeaders.ContentType, contentType)
             append(HttpHeaders.ContentDisposition, "filename=\"audio.mp3\"")
         }
+        val voiceBuffer = kotlinx.io.Buffer()
+        data(voiceBuffer)
         val body = MultiPartFormDataContent(
             formData {
                 append("chat_id", chatId)
@@ -182,7 +252,7 @@ object TelegramApi {
                 disableNotification?.let { append("disable_notification", it.toString()) }
                 messageThreadId?.let { append("message_thread_id", it) }
                 parseMode?.let { append("parse_mode", it.code) }
-                append(key = "voice", headers = voiceHeaders, bodyBuilder = data)
+                appendInput(key = "voice", headers = voiceHeaders, size = voiceBuffer.size) { voiceBuffer }
             },
             boundary = DEFAULT_BOUNDARY,
         )
@@ -238,22 +308,57 @@ object TelegramApi {
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private suspend fun <RESPONSE> sendMultipart(
+        client: HttpClient,
+        token: String,
+        baseUrl: String,
+        function: String,
+        responseSerializer: KSerializer<RESPONSE>,
+        formBuilder: FormBuilder.() -> Unit,
+    ): RESPONSE {
+        val body = MultiPartFormDataContent(
+            formData(formBuilder),
+            boundary = DEFAULT_BOUNDARY,
+        )
+        val response = client.post(functionPath(baseUrl, token, function)) {
+            setBody(body)
+        }
+        val text = response.bodyAsText()
+        check(response.status == HttpStatusCode.OK) {
+            "Invalid response code ${response.status}\nResponse: $text"
+        }
+        if (responseSerializer === Unit.serializer()) {
+            return Unit as RESPONSE
+        }
+        val result = getResult(text)
+        return try {
+            jsonSerialization.decodeFromJsonElement(responseSerializer, result)
+        } catch (e: SerializationException) {
+            throw IllegalStateException(
+                "Can't decode response\nSerializer: ${responseSerializer.descriptor.serialName}\njson: $result",
+                e,
+            )
+        }
+    }
+
     suspend fun setWebhook(
         client: HttpClient,
         token: String,
         request: SetWebhookRequest,
         baseUrl: String = DEFAULT_BASE_URL,
-    ) {
-        send(
+    ): Boolean {
+        send<SetWebhookRequest, Boolean>(
             client = client,
             token = token,
             baseUrl = baseUrl,
             requestSerializer = SetWebhookRequest.serializer(),
-            responseSerializer = Unit.serializer(),
+            responseSerializer = Boolean.serializer(),
             request = request,
             function = "setWebhook",
             method = HttpMethod.Post,
         )
+        return true
     }
 
     suspend fun answerCallbackQuery(
@@ -279,17 +384,18 @@ object TelegramApi {
         token: String,
         commands: List<BotCommand>,
         baseUrl: String = DEFAULT_BASE_URL,
-    ) {
-        send(
+    ): Boolean {
+        send<SetMyCommandsRequest, Boolean>(
             client = client,
             token = token,
             baseUrl = baseUrl,
             requestSerializer = SetMyCommandsRequest.serializer(),
             request = SetMyCommandsRequest(commands),
-            responseSerializer = Unit.serializer(),
+            responseSerializer = Boolean.serializer(),
             function = "setMyCommands",
             method = HttpMethod.Post,
         )
+        return true
     }
 
     suspend fun getMyCommands(
@@ -348,13 +454,13 @@ object TelegramApi {
         chatId: String,
         messageId: Long,
         baseUrl: String = DEFAULT_BASE_URL,
-    ) {
-        send(
+    ): Boolean {
+        send<Unit, Boolean>(
             client = client,
             method = HttpMethod.Post,
             requestSerializer = Unit.serializer(),
             request = Unit,
-            responseSerializer = Unit.serializer(),
+            responseSerializer = Boolean.serializer(),
             function = "deleteMessage",
             token = token,
             baseUrl = baseUrl,
@@ -363,6 +469,7 @@ object TelegramApi {
                 append("message_id", messageId.toString())
             },
         )
+        return true
     }
 
     suspend fun getMe(

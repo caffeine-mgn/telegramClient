@@ -72,7 +72,7 @@ class TelegramClientTest {
             }
         """.trimIndent()
         val s = newScenario { respond(content = userJson, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val me = tg.getMe()
         assertEquals(42L, me.id)
         assertEquals(true, me.isBot)
@@ -86,7 +86,7 @@ class TelegramClientTest {
             {"ok": true, "result": {"message_id": 1, "date": 0, "chat": {"id": 1, "type": "private"}, "text": "hi"}}
         """.trimIndent()
         val s = newScenario { respond(content = response, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val msg = tg.sendMessage(TextMessage(chatId = "1", text = "hi"))
         assertEquals("hi", msg.text)
         assertEquals(1L, msg.messageId)
@@ -105,7 +105,7 @@ class TelegramClientTest {
             {"ok": false, "error_code": 403, "description": "Forbidden"}
         """.trimIndent()
         val s = newScenario { respond(content = errorBody, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val ex = assertFailsWith<TelegramException> { tg.getMe() }
         assertEquals(403, ex.code)
         assertEquals("Forbidden", ex.description)
@@ -114,7 +114,7 @@ class TelegramClientTest {
     @Test
     fun telegramExceptionOnNon200Status() = runTest {
         val s = newScenario { respondError(status = HttpStatusCode.InternalServerError) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         assertFailsWith(IllegalArgumentException::class) { tg.getMe() }
     }
 
@@ -124,7 +124,7 @@ class TelegramClientTest {
             {"ok": true, "result": {"file_id": "abc", "file_path": "documents/file.pdf", "file_unique_id": "u", "file_size": 10}}
         """.trimIndent()
         val s = newScenario { respond(content = response, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val f = tg.getFile("abc")
         assertEquals("documents/file.pdf", f.filePath)
         val req = assertNotNull(s.lastRequest.load())
@@ -143,7 +143,7 @@ class TelegramClientTest {
                 headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"),
             )
         }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val channel: ByteReadChannel = tg.downloadFile("documents/file.pdf")
         val received = channel.toByteArray()
         assertContentEquals(bytes, received)
@@ -151,9 +151,9 @@ class TelegramClientTest {
 
     @Test
     fun deleteMessageSendsChatIdAndMessageId() = runTest {
-        val response = """{"ok": true, "result": {"id": 1, "is_bot": false, "first_name": "u"}}"""
+        val response = """{"ok": true, "result": true}"""
         val s = newScenario { respond(content = response, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         tg.deleteMessage(chatId = "999", messageId = 7L)
         val req = assertNotNull(s.lastRequest.load())
         assertEquals(HttpMethod.Post, req.method)
@@ -166,7 +166,7 @@ class TelegramClientTest {
     fun getWebhookReturnsCurrentInfo() = runTest {
         val present = """{"ok": true, "result": {"url": "https://example.com", "has_custom_certificate": false, "pending_update_count": 0}}"""
         val s = newScenario { respond(content = present, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val wh = tg.getWebhook()
         assertEquals("https://example.com", wh.url)
         assertEquals(0, wh.pendingUpdateCount)
@@ -178,7 +178,7 @@ class TelegramClientTest {
             {"ok": true, "result": {"message_id": 11, "date": 0, "chat": {"id": 1, "type": "private"}}}
         """.trimIndent()
         val s = newScenario { respond(content = messageJson, status = HttpStatusCode.OK) }
-        val tg = TelegramClientImpl(s.httpClient, token)
+        val tg = TelegramClient.wrap(s.httpClient, token)
         val msg: Message = tg.sendVoice(
             chatId = "1",
             caption = "voice",
