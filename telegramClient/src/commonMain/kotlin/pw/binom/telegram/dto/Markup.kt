@@ -7,7 +7,12 @@ import kotlinx.serialization.Serializable
 sealed class Markup
 
 @Serializable
-class ForceReply : Markup()
+data class ForceReply(
+    @SerialName("force_reply")
+    val forceReply: Boolean = true,
+    @SerialName("selective")
+    val selective: Boolean? = null,
+) : Markup()
 
 /**
  * This object represents an inline keyboard that appears right next to the message it belongs to.

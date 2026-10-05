@@ -16,6 +16,7 @@ data class EditTextRequest(
      */
     @SerialName("message_id")
     val messageId: Long? = null,
+
     /**
      * Required if chat_id and message_id are not specified. Identifier of the inline message
      */

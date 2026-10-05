@@ -14,9 +14,9 @@ data class Chat(
     val id: Long,
 
     /**
-     * Type of chat, can be either “private”, “group”, "supergroup" or “channel”
+     * Type of chat
      */
-    val type: String,
+    val type: ChatType,
 
     /**
      * Title, for supergroups, channels and group chats

@@ -1,0 +1,152 @@
+# Tag-triggered: any pushed tag of the form N.N.N (or N.N.N-suffix) starts a
+# Sonatype Central publish. The workflow forwards GITHUB_REF_NAME (the tag
+# itself) to Gradle as `-Pversion=` so build.gradle.kts picks it up as the
+# project version — the published artifact's name matches the release name.
+#
+# Two jobs:
+#
+# test (ubuntu-latest) — the fast gate. Runs jvmTest (with Testcontainers if
+# any), then compiles every native target (jvm / iosArm64 /
+# iosSimulatorArm64 / macosArm64 / linuxX64 / linuxArm64 / mingwX64). No
+# native *tests* to run — compile is enough.
+#
+# publish (macos-14) — the release host. macOS is the only Kotlin/Native
+# host that can build the Apple targets (macosArm64, iosArm64,
+# iosSimulatorArm64), and it cross-builds every other target from one box.
+# That keeps the whole publication in a single Sonatype Central deployment.
+# jvmTest re-runs on the Linux job only — colima-based Docker provisioning
+# on macos-14 is unreliable (UEFI/QEMU firmware errors).
+#
+# Conventions mirror the rest of the caffeine-mgn/* repos (kpostgres, klua,
+# ksqlite, kdns): the GPG key is imported into the system keyring once at
+# job start, `signingUseGpg` flips the build over to `useGpgCmd()`, and
+# the Sonatype user token plus GPG key id/passphrase are forwarded as
+# `-PmavenCentral*` / `-Psigning.gnupg.*` Gradle properties.
+#
+# Android SDK is intentionally absent: there is no `android()` target in
+# build.gradle.kts — the pure commonMain build compiles on Android
+# automatically if/when someone adds the target, so we don't drag the SDK
+# in pre-emptively.
+name: Release to Maven Central
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Linux gate: jvmTest + compile every native target.
+  # ---------------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: liberica
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Linux x86_64 is the host. Kotlin/Native 2.x auto-downloads cross
+      # toolchains (linuxArm64, mingwX64) on first compile of the
+      # corresponding target — no separate downloadKonanToolchain* task
+      # exists in this version.
+      - name: Run JVM tests
+        run: ./gradlew jvmTest --stacktrace
+
+      # Native target compile gate: no native *tests* to run, so a clean
+      # compile of every supported target is the equivalent of a native
+      # *Test gate.
+      - name: Compile every supported native target
+        run: |
+          ./gradlew \
+            compileKotlinIosArm64 \
+            compileKotlinIosSimulatorArm64 \
+            compileKotlinMacosArm64 \
+            compileKotlinLinuxX64 \
+            compileKotlinLinuxArm64 \
+            compileKotlinMingwX64 \
+            --stacktrace
+
+      - name: Repository hygiene (no build outputs tracked)
+        run: test "$(git ls-files | grep -cE '^(build|\.gradle)/')" = "0"
+
+  # ---------------------------------------------------------------------------
+  # Publish: macOS universal host (Apple + every cross target), one Central
+  # deployment.
+  # ---------------------------------------------------------------------------
+  publish:
+    needs: test
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: liberica
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # No Docker on macOS-14: jvmTest was already exercised on the Linux
+      # gate job. Provisioning colima here was unreliable on macos-14
+      # (UEFI/QEMU firmware errors at startup, see first 0.1.0 release
+      # run). The Linux job is the test gate; the macOS job is the
+      # publication host only.
+
+      # The GPG private key is stored in GitHub secrets with literal `\n`
+      # escapes (one-line encoding). `printf '%b'` interprets those
+      # escapes; the import is non-interactive (`--batch --pinentry-mode
+      # loopback`). When the key has no passphrase (GPG_PASSWORD secret is
+      # unset/empty), `--passphrase` is omitted because gpg loopback
+      # rejects the literal empty string as "Invalid data".
+      - name: Import GPG key
+        env:
+          GPG_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSWORD }}
+        run: |
+          command -v gpg >/dev/null 2>&1 || brew install gnupg
+          mkdir -p ~/.gnupg
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
+          gpgconf --reload gpg-agent
+          if [ -n "$GPG_PASSPHRASE" ]; then
+            printf '%b' "$GPG_KEY" | gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --import
+          else
+            printf '%b' "$GPG_KEY" | gpg --batch --pinentry-mode loopback --import
+          fi
+
+      # The Testcontainers IT suite (jvmTest) was already run on the Linux
+      # gate job; on the publish host we just compile the Apple targets to
+      # verify the publication was assembled from a green build on the OS
+      # that ships it.
+      - name: Compile every Apple target on the Apple host
+        run: |
+          ./gradlew \
+            compileKotlinIosArm64 \
+            compileKotlinIosSimulatorArm64 \
+            compileKotlinMacosArm64 \
+            --stacktrace
+
+      - name: Publish to Maven Central
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_PASSWORD: ${{ secrets.GPG_PASSWORD }}
+          PUBLISH_VERSION: ${{ github.ref_name }}
+        run: |
+          ./gradlew publishToMavenCentral \
+            -Pversion=${PUBLISH_VERSION} \
+            -PsigningUseGpg=true \
+            -Psigning.gnupg.keyName="$GPG_KEY_ID" \
+            -Psigning.gnupg.passphrase="$GPG_PASSWORD" \
+            -PmavenCentralUsername=${{ secrets.CENTRAL_USERNAME }} \
+            -PmavenCentralPassword=${{ secrets.CENTRAL_PASSWORD }}

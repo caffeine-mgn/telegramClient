@@ -1,35 +1,45 @@
 package pw.binom.telegram
 
-import pw.binom.http.client.HttpClientRunnable
-import pw.binom.io.AsyncInput
-import pw.binom.io.AsyncOutput
-import pw.binom.io.httpClient.HttpClient
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngineFactory
+import io.ktor.utils.io.ByteReadChannel
+import kotlinx.io.Sink
 import pw.binom.telegram.dto.*
 import kotlin.time.Duration
 
+const val DEFAULT_BOT_API_URL: String = "https://api.telegram.org"
+
 interface TelegramClient {
     companion object {
-        fun open(httpClient: HttpClientRunnable, token: String, lastUpdate: Long = 0) = TelegramClientImpl(
-            lastUpdate = lastUpdate,
+        fun open(
+            engineFactory: HttpClientEngineFactory<*>,
+            token: String,
+            lastUpdate: Long = 0,
+            baseUrl: String = DEFAULT_BOT_API_URL,
+        ): TelegramClient = TelegramClientImpl(
+            httpClient = HttpClient(engineFactory),
             token = token,
-            client = httpClient
+            lastUpdate = lastUpdate,
+            baseUrl = baseUrl,
         )
     }
 
+    val baseUrl: String
+
     suspend fun deleteWebhook()
-    suspend fun getWebhook(): WebhookInfo?
+    suspend fun getWebhook(): WebhookInfo
 
     /**
-     * @param timeout Timeout in seconds
+     * @param timeout Timeout in seconds (Telegram accepts values 0-90)
      */
     suspend fun getUpdate(
-        limit: Long? = 1000,
+        limit: Long? = 100,
         timeout: Long = 60,
         allowedUpdates: List<EventType>? = null,
     ): List<Update>
 
     suspend fun deleteMessage(chatId: String, messageId: Long)
-    suspend fun editMessage(message: EditTextRequest): Message?
+    suspend fun editMessage(message: EditTextRequest): EditMessageResult
     suspend fun setWebhook(request: SetWebhookRequest)
     suspend fun sendMessage(message: TextMessage): Message
     suspend fun answerCallbackQuery(query: AnswerCallbackQueryRequest)
@@ -43,8 +53,8 @@ interface TelegramClient {
         disableNotification: Boolean? = null,
         messageThreadId: String? = null,
         parseMode: ParseMode? = null,
-        contentType: String = "application/octet-stream",
-        data: suspend (AsyncOutput) -> Unit,
+        contentType: String = "audio/mpeg",
+        data: Sink.() -> Unit,
     ): Message
 
     suspend fun getFile(
@@ -53,7 +63,11 @@ interface TelegramClient {
 
     suspend fun downloadFile(
         filePath: String,
-    ): AsyncInput
+    ): ByteReadChannel
+
+    suspend fun downloadFileById(
+        fileId: String,
+    ): ByteReadChannel
 
     suspend fun sendChatAction(
         chatId: String,

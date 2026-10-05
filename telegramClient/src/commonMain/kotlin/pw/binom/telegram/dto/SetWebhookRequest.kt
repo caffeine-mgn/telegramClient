@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-class SetWebhookRequest(
+data class SetWebhookRequest(
 
     /**
      * HTTPS URL to send updates to. Use an empty string to remove webhook integration
