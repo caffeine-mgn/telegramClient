@@ -13,23 +13,30 @@ library lean and lets the consumer pick the runtime.
 
 ## Install
 
-`pw.binom.telegram:telegramClient:<version>` is published to **Maven Central**
+`pw.binom.telegram:telegramClient:0.1.0` is published to **Maven Central**
 through [Vanniktech's `maven-publish`](https://github.com/vanniktech/maven-publish)
-plugin. Add the dependency to your multiplatform module:
+plugin. Add the core dependency to your multiplatform module:
 
 ```kotlin
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("pw.binom.telegram:telegramClient:<version>")
+            implementation("pw.binom.telegram:telegramClient:0.1.0")
         }
+
+        // Pick the engine per platform — list every platform you'll deploy on.
+        jvmMain.dependencies       { implementation("io.ktor:ktor-client-cio:3.2.0") }
+        iosMain.dependencies       { implementation("io.ktor:ktor-client-darwin:3.2.0") }
+        macosMain.dependencies     { implementation("io.ktor:ktor-client-darwin:3.2.0") }
+        linuxMain.dependencies     { implementation("io.ktor:ktor-client-cio:3.2.0") }
+        mingwMain.dependencies     { implementation("io.ktor:ktor-client-cio:3.2.0") }
+        jsMain.dependencies        { implementation("io.ktor:ktor-client-js:3.2.0") }
     }
 }
 ```
 
-The matching Ktor engine artifact (e.g. `io.ktor:ktor-client-cio` or
-`io.ktor:ktor-client-okhttp`) is **yours** to pick — declare it in the
-platform source set where you'll run.
+> The Ktor engine artifact is yours to pick — declare it in the platform
+> source set where you'll run. The library has no engine baked in.
 
 ## Use
 
@@ -42,6 +49,9 @@ val client = TelegramClient.open(
 client.sendMessage(TextMessage(chatId = "1", text = "Hello, world!"))
 ```
 
+`TelegramClient` is `AutoCloseable` — wrap it in `use { … }` or call `close()`
+explicitly when you're done.
+
 ### Passing a pre-built `HttpClient`
 
 If you already maintain a Ktor client with custom plugins (auth, logging,
@@ -50,15 +60,21 @@ timeouts…), just hand it to `TelegramClient.wrap`:
 ```kotlin
 val http = HttpClient(CIO) {
     install(HttpTimeout) { requestTimeoutMillis = 30_000 }
-    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true })
+    }
 }
 val tg = TelegramClient.wrap(http, token = "<bot-token>")
 ```
 
+When you go through `wrap`, the caller is responsible for installing
+`ContentNegotiation` with a JSON `Json { ignoreUnknownKeys = true }` —
+that's the configuration the library expects.
+
 ### Streaming uploads
 
-`sink.voice` takes a `kotlinx.io.Sink.() -> Unit` so the bytes never have to
-live in memory as a single `ByteArray`:
+`sendVoice` accepts a `kotlinx.io.Sink.() -> Unit` so the bytes never have
+to live in memory as a single `ByteArray`:
 
 ```kotlin
 client.sendVoice(
@@ -68,6 +84,41 @@ client.sendVoice(
 ) {
     write(opaqueBytes)
 }
+```
+
+For files, point the lambda at a `BufferedSource` you already have:
+
+```kotlin
+client.sendVoice(chatId = "1") {
+    write(opaqueBytes)
+    // or: channel.copyTo(this) where channel: ByteReadChannel
+}
+```
+
+### Polling for updates
+
+```kotlin
+var offset = 0L
+while (true) {
+    val updates = client.getUpdate(
+        offset = offset.takeIf { it > 0 },
+        timeout = 30,
+        allowedUpdates = null,
+    )
+    for (u in updates) {
+        offset = u.updateId + 1
+        // …handle u…
+    }
+}
+```
+
+### Downloading media to disk
+
+```kotlin
+val file = client.getFile(fileId)
+val channel: ByteReadChannel = client.downloadFile(file.filePath)
+val out = File("/tmp/${file.filePath.substringAfterLast('/')}").outputStream().asSink()
+channel.copyTo(out)
 ```
 
 ## Targets: JVM, iOS (arm64 + simulator), macOS (arm64), Linux (x64 + arm64),
