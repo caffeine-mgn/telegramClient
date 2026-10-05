@@ -8,26 +8,14 @@ Kotlin Multiplatform клиент Telegram Bot API поверх
 [Ktor HttpClient](https://ktor.io/docs/client.html). Публикуется в **Maven
 Central** как `pw.binom.telegram:telegramClient`.
 
-> 🇬🇧 [English version](README.md)
+> [English version](README.md)
 
 ## Подключение
 
-Подберите Ktor engine под каждую платформу — в самой библиотеке engine нет.
-
 ```kotlin
-kotlin {
-    sourceSets {
-        commonMain.dependencies {
-            implementation("pw.binom.telegram:telegramClient:0.1.0")
-        }
-
-        jvmMain.dependencies   { implementation("io.ktor:ktor-client-cio:3.2.0") }
-        iosMain.dependencies   { implementation("io.ktor:ktor-client-darwin:3.2.0") }
-        macosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.2.0") }
-        linuxMain.dependencies { implementation("io.ktor:ktor-client-cio:3.2.0") }
-        mingwMain.dependencies { implementation("io.ktor:ktor-client-cio:3.2.0") }
-        jsMain.dependencies    { implementation("io.ktor:ktor-client-js:3.2.0") }
-    }
+dependencies {
+    implementation("pw.binom.telegram:telegramClient:0.1.0")
+    implementation("io.ktor:ktor-client-cio:3.2.0")
 }
 ```
 
