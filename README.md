@@ -35,10 +35,3 @@ tg.use {
 
 JVM, iOS (arm64 + simulator), macOS (arm64), Linux (x64 + arm64), Windows
 (mingw x64).
-
-## Release
-
-Tag `N.N.N`, push — GitHub Actions (`.github/workflows/release.yml`) builds,
-runs tests, signs with the team's GPG key and publishes to Maven Central via
-[Vanniktech's `maven-publish`](https://github.com/vanniktech/maven-publish)
-plugin.

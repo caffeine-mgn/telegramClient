@@ -35,10 +35,3 @@ tg.use {
 
 JVM, iOS (arm64 + simulator), macOS (arm64), Linux (x64 + arm64), Windows
 (mingw x64).
-
-## Релиз
-
-Создайте тег `N.N.N`, запушьте — GitHub Actions (`.github/workflows/release.yml`)
-соберёт проект, прогоняет тесты, подпишет артефакты GPG-ключом команды и
-опубликует их в Maven Central через
-[Vanniktech `maven-publish`](https://github.com/vanniktech/maven-publish).
