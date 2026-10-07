@@ -12,6 +12,12 @@ data class TextMessage(
     val chatId: String,
 
     /**
+     * Unique identifier for the target message thread (topic) of the forum — when replying inside a topic.
+     */
+    @SerialName("message_thread_id")
+    val messageThreadId: Long? = null,
+
+    /**
      * Text of the message to be sent, 1-4096 characters after entities parsing
      */
     @SerialName("text")
